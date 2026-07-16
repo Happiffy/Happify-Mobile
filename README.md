@@ -1,106 +1,92 @@
 # Happify Mobile
 
-Mobile app Happify berbasis Flutter untuk mood tracking, journaling, mindfulness, AI Companion, professional care, dan Companion device.
-
----
+Happify Mobile is the Flutter client for mood tracking, journaling, mindfulness, AI companion interactions, professional care, anonymous community support, and Happify Companion devices.
 
 ## Overview
 
-Happify Mobile adalah client untuk pengguna yang ingin:
+The mobile application allows users to:
 
-- mencatat mood dan melihat trend kesehatan mental
-- menulis daily journal dan mendapatkan insight AI
-- berbicara dengan AI Companion melalui voice session
-- menjalankan grounding dan mindfulness activities
-- menghubungkan aplikasi dengan Happify Companion
-- mengakses community, care referral, dan emergency contact
+- Record moods and view wellbeing trends
+- Write daily journals and receive optional AI insights
+- Use voice sessions with the AI Companion
+- Complete breathing, grounding, and mindfulness activities
+- Connect and manage a Happify Companion device
+- Access anonymous community support, professional referrals, care chat, and emergency contacts
 
-Mobile app tidak memanggil AI-Happify secara langsung. Semua request aplikasi dikirim ke BE-Happify.
+The application does not call Happify AI directly. All application requests are sent to Happify Backend.
 
----
-
-## Tech Stack
+## Technology Stack
 
 | Area | Stack |
 | --- | --- |
-| Framework | Flutter, Dart |
+| Framework | Flutter and Dart |
 | Navigation | GoRouter |
-| State Management | Flutter BLoC / Cubit |
+| State Management | Flutter BLoC and Cubit |
 | Networking | Dio |
 | Authentication | Firebase Auth |
-| Push Notification | Firebase Messaging |
+| Notifications | Firebase Messaging |
 | Audio | Record, AudioPlayers, Flutter TTS |
-| Storage | Shared Preferences, Path Provider |
-| UI | Material, Google Fonts, Phosphor Icons, Flutter Animate |
-| Testing | Flutter Test, Bloc Test |
-| Distribution | Android APK / AAB |
-
----
+| Local Storage | Shared Preferences and Path Provider |
+| UI | Material, Google Fonts, Phosphor Icons, Iconify |
+| Testing | Flutter Test |
+| Distribution | Android APK and AAB |
 
 ## Features
 
-- **Mood Tracker** - catat mood harian dan lihat histori perubahan emosi.
-- **Mood Analytics** - tampilkan trend mood serta pola hasil voice conversation.
-- **Daily Journaling** - tulis refleksi harian dan kirim ke backend untuk optional AI analysis.
-- **AI Companion** - rekam percakapan, kirim voice turn, tampilkan transcript, mood, risk, dan response audio.
-- **Session Tracking** - gunakan sesi baru untuk memisahkan percakapan curhat.
-- **Mindfulness** - breathing, grounding, meditation, dan progress tracking.
-- **Community** - akses peer support dan moderated community.
-- **Professional Care** - referral ke psikolog, provider, dan care chat.
-- **Companion Management** - pairing device, telemetry, firmware, OTA, dan haptic command.
-- **Consent** - consent untuk AI, voice, device emotion observation, dan heatmap.
-- **Accessibility** - text scale, high contrast, reduced motion, dan screen-reader support.
-- **Firebase Auth and Push** - login, session restore, dan notification support.
+- **Mood Tracker** — Record daily moods and inspect emotional history.
+- **Mood Analytics** — Display mood trends and voice-conversation patterns.
+- **Daily Journaling** — Save reflections and send them to the backend for optional AI analysis.
+- **AI Companion** — Record a voice turn and display transcripts, mood, risk, and response audio.
+- **Session Tracking** — Separate distinct companion conversations.
+- **Mindfulness** — Breathing, grounding, meditation, and progress tracking.
+- **Anonymous Community** — Participate in moderated peer-support interactions.
+- **Professional Care** — Request referrals, browse providers, and use care chat.
+- **Companion Management** — Pair devices, view telemetry, manage firmware, OTA metadata, and haptic commands.
+- **Consent** — Manage consent for AI, voice, device emotion observations, and heatmap contributions.
+- **Accessibility** — Text scaling, high contrast, reduced motion, and screen-reader-oriented settings.
+- **Firebase Auth and Push** — Sign-in, session restoration, and notification support.
 
----
-
-## App Routes
+## Application Routes
 
 | Path | Description |
 | --- | --- |
-| `/` | Splash dan session restore |
-| `/onboarding` | Onboarding pengguna |
-| `/welcome` | Welcome page |
-| `/login` | Login |
-| `/register` | Registrasi |
-| `/forgot` | Forgot password |
+| `/` | Splash screen and session restoration |
+| `/onboarding` | User onboarding |
+| `/welcome` | Welcome screen |
+| `/login` | Sign-in |
+| `/register` | Registration |
+| `/forgot` | Password reset |
 | `/consent` | Consent review |
 | `/app` | Main Happify shell |
-| `/companion` | Companion device management |
-| `/care` | Professional care dan care chat |
+| `/companion` | Companion-device management |
+| `/care` | Professional care and care chat |
 | `/contacts` | Emergency contacts |
 | `/voice` | Voice Companion |
 
----
-
 ## Environment Variables
 
-Flutter membaca environment melalui `--dart-define-from-file`. File `.env` lokal tidak di-commit.
+Flutter reads configuration through `--dart-define` or `--dart-define-from-file`. Local `.env` files are not committed.
 
-Buat `.env` dari `.env.example`:
+Create `.env` from `.env.example`:
 
 ```env
-BE_API_URL=https://happify-be-production.up.railway.app
+BE_API_URL=http://localhost:4000
 ```
 
 | Variable | Description |
 | --- | --- |
-| `BE_API_URL` | Base URL BE-Happify. Production: `https://happify-be-production.up.railway.app`. |
+| `BE_API_URL` | Base URL of Happify Backend. |
 
-Mobile hanya membutuhkan URL backend. Jangan masukkan `AI_SERVICE_BASE_URL` ke mobile karena AI hanya diakses oleh BE-Happify.
-
----
+The mobile client only needs the backend URL. Do not add `AI_SERVICE_BASE_URL` to the mobile application because AI access is brokered by Happify Backend.
 
 ## Firebase Configuration
 
-Firebase tidak dimasukkan ke `.env` mobile. Gunakan file native resmi:
+Firebase configuration is not stored in the mobile `.env` file. Use the official platform files:
 
 - Android: `android/app/google-services.json`
-- iOS: tambahkan `GoogleService-Info.plist` ke Runner target di Xcode
+- iOS: add `GoogleService-Info.plist` to the Runner target in Xcode
 
-Tanpa file Firebase, app tetap dapat dibuka dalam guest mode, tetapi authentication dan push notification tidak aktif.
-
----
+These files are ignored by Git. Without Firebase configuration, the application can still open in guest mode, but authentication and push notifications are unavailable.
 
 ## Getting Started
 
@@ -108,11 +94,11 @@ Tanpa file Firebase, app tetap dapat dibuka dalam guest mode, tetapi authenticat
 
 - Flutter `3.38.9` stable
 - Dart `3.10.8`
-- Android Studio atau Xcode sesuai platform
-- BE-Happify berjalan atau URL production yang dapat dijangkau
-- Firebase project configuration untuk authentication
+- Android Studio or Xcode for the relevant target platform
+- A reachable Happify Backend instance
+- Firebase project configuration for authentication
 
-### Installation
+### Install Dependencies
 
 ```bash
 flutter pub get
@@ -120,36 +106,34 @@ flutter pub get
 
 ### Android Emulator
 
-Buat atau gunakan `.env.emulator`:
+Create `.env.emulator`:
 
 ```env
 BE_API_URL=http://10.0.2.2:4000
 ```
 
-Run:
+Run the application:
 
 ```bash
 flutter run --dart-define-from-file=.env.emulator
 ```
 
-`10.0.2.2` adalah alamat host machine dari Android emulator.
+`10.0.2.2` is the Android emulator alias for the host machine.
 
 ### Physical Device
 
-Gunakan URL backend yang dapat dijangkau device, biasanya HTTPS:
+Use a backend URL reachable from the device:
 
 ```bash
-flutter run --dart-define=BE_API_URL=https://happify-be-production.up.railway.app
+flutter run --dart-define=BE_API_URL=https://your-backend.example
 ```
 
-### Production Local Build
+### Local Release Build
 
 ```bash
 flutter build apk --release --dart-define-from-file=.env
 flutter build appbundle --release --dart-define-from-file=.env
 ```
-
----
 
 ## Verification
 
@@ -158,19 +142,11 @@ flutter analyze
 flutter build apk --debug --dart-define-from-file=.env
 ```
 
----
-
 ## Android Release
 
-Upload keystore lokal berada di `android/app/happify-upload-key.jks` dan credential berada di `android/key.properties`. Keduanya harus tetap ignored dan dibackup secara aman.
+Keep the local Android upload keystore at `android/app/happify-upload-key.jks` and its properties in `android/key.properties`. Both files must remain ignored by Git and must be backed up securely.
 
-Jika `MOBILE-Happify` dipush sebagai repository GitHub sendiri, GitHub Actions menggunakan environment `mobile-release` dengan:
-
-### Variable
-
-- `BE_API_URL`
-
-### Secrets
+The Android workflow expects these repository secrets:
 
 - `ANDROID_KEYSTORE_BASE64`
 - `ANDROID_KEYSTORE_PASSWORD`
@@ -178,48 +154,32 @@ Jika `MOBILE-Happify` dipush sebagai repository GitHub sendiri, GitHub Actions m
 - `ANDROID_KEY_PASSWORD`
 - `GOOGLE_SERVICES_JSON_BASE64`
 
-Workflow release membuat signed APK dan AAB melalui manual dispatch atau tag `mobile-v*`.
-
----
-
-## Deployment URLs
-
-| Service | URL |
-| --- | --- |
-| Production Backend | `https://happify-be-production.up.railway.app` |
-| AI Service | `https://happify-ai-production.up.railway.app` |
-
-Mobile hanya menggunakan URL Production Backend. AI Service URL tidak dimasukkan ke mobile.
-
----
+It also supports a `BE_API_URL` configuration variable. The workflow builds signed APK and AAB artifacts through manual dispatch or a `mobile-v*` tag.
 
 ## Project Structure
 
-```txt
+```text
 lib
-|-- core                 # API client, services, theme, shared widgets
+|-- core                 # API client, services, theme, and shared widgets
 |-- features
-|   |-- auth              # Firebase auth flow
-|   |-- home              # Home shell dan dashboard entry
-|   |-- mood              # Mood tracker dan mood analytics
-|   |-- journal           # Daily journaling
-|   |-- companion         # Device pairing dan management
-|   |-- voice             # AI voice Companion
-|   |-- mindfulness       # Mindfulness content dan progress
-|   |-- community         # Peer community
-|   |-- care              # Professional referral dan care chat
-|   |-- consent           # Consent management
-|   |-- profile           # Profile dan settings
-|-- main.dart             # App entry point dan route configuration
+|   |-- auth             # Firebase authentication flow
+|   |-- home             # Home shell and dashboard entry
+|   |-- mood             # Mood tracking and analytics
+|   |-- journal          # Daily journaling
+|   |-- companion        # Device pairing and management
+|   |-- voice            # AI voice Companion
+|   |-- mindfulness      # Mindfulness content and progress
+|   |-- community        # Anonymous peer community
+|   |-- care             # Professional referrals and care chat
+|   |-- consent          # Consent management
+|   |-- profile          # Profile and settings
+|-- main.dart             # Application entry point and routes
 assets
 |-- mascot
 |-- illustrations
-|-- animations
-android                    # Android project dan release configuration
-ios                       # iOS project
+android                    # Android project and release configuration
+ios                        # iOS project
 ```
-
----
 
 ## Architecture
 
@@ -227,9 +187,9 @@ ios                       # iOS project
 Happify Mobile
       |
       v
-BE-Happify
+Happify Backend
   |   |   \
   |   |    +--> PostgreSQL-backed API
-  |   +-------> Firebase Auth / Messaging
-  +-----------> AI-Happify through backend
+  |   +-------> Firebase Auth and Messaging
+  +-----------> Happify AI through the backend
 ```
