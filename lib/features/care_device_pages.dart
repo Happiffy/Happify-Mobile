@@ -9,39 +9,11 @@ import 'package:record/record.dart';
 
 import '../core/app_services.dart';
 import '../core/happify_repository.dart';
-import '../core/theme/happify_colors.dart';
-import '../core/theme/happify_theme.dart';
 import '../core/widgets/common_widgets.dart';
 import '../core/widgets/happify_button.dart';
 import '../core/widgets/happify_emoji.dart';
+import '../core/widgets/quokka_badge.dart';
 import 'companion/bloc_device_detail_sheet.dart';
-
-class _VoiceSession {
-  const _VoiceSession({required this.id, required this.turns});
-
-  final String id;
-  final List<Map<String, dynamic>> turns;
-
-  DateTime get startedAt {
-    final dates = turns
-        .map((turn) => DateTime.tryParse(turn['createdAt']?.toString() ?? ''))
-        .whereType<DateTime>()
-        .toList();
-    if (dates.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0);
-    dates.sort();
-    return dates.first;
-  }
-
-  DateTime get latestAt {
-    final dates = turns
-        .map((turn) => DateTime.tryParse(turn['createdAt']?.toString() ?? ''))
-        .whereType<DateTime>()
-        .toList();
-    if (dates.isEmpty) return startedAt;
-    dates.sort();
-    return dates.last;
-  }
-}
 
 class VoicePage extends StatefulWidget {
   const VoicePage({super.key});
@@ -82,7 +54,7 @@ class _VoicePageState extends State<VoicePage> {
     try {
       final turns = await HappifyRepository(
         AppServices.of(context).auth.api,
-      ).voiceTurns(limit: 100);
+      ).voiceTurns();
       if (mounted) {
         setState(() {
           _turns = turns;
@@ -115,30 +87,6 @@ class _VoicePageState extends State<VoicePage> {
       _turn = null;
       _error = null;
     });
-  }
-
-  List<_VoiceSession> get _sessions {
-    final grouped = <String, List<Map<String, dynamic>>>{};
-    for (final turn in _turns) {
-      final turnId = turn['id']?.toString() ?? '';
-      final rawSessionId = turn['sessionId']?.toString();
-      final sessionId = rawSessionId == null || rawSessionId.isEmpty
-          ? 'legacy-$turnId'
-          : rawSessionId;
-      grouped.putIfAbsent(sessionId, () => []).add(turn);
-    }
-    final sessions =
-        grouped.entries
-            .map((entry) => _VoiceSession(id: entry.key, turns: entry.value))
-            .toList()
-          ..sort((a, b) => a.startedAt.compareTo(b.startedAt));
-    return sessions;
-  }
-
-  int get _currentSessionNumber {
-    final sessions = _sessions;
-    final index = sessions.indexWhere((session) => session.id == _sessionId);
-    return index < 0 ? sessions.length + 1 : index + 1;
   }
 
   Future<bool> _hasVoiceConsent() async {
@@ -299,43 +247,30 @@ class _VoicePageState extends State<VoicePage> {
       body: HappifyPage(
         refresh: _loadTurns,
         children: [
-          Center(child: HappifyEmoji.microphone(size: 76)),
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const QuokkaBadge(size: 96, calm: true),
+                const SizedBox(width: 12),
+                HappifyEmoji.microphone(size: 58),
+              ],
+            ),
+          ),
 
           const SizedBox(height: 16),
           FeatureCard(
-            color: HappifyColors.blueSurface,
-            child: Row(
+            color: const Color(0xFFEAF8FF),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    PhosphorIcons.chatCircleDots(PhosphorIconsStyle.duotone),
-                    color: HappifyColors.blueDark,
-                    size: 28,
-                  ),
+                Text(
+                  'Current sharing session',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sesi $_currentSessionNumber · Sedang berlangsung',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Semua rekaman berikutnya masuk ke sesi ini. Pilih Sesi baru saat memulai topik atau percakapan yang berbeda.',
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Use New session when you begin a separate conversation. Each turn in this session shares one session ID, while the transcript and analyzed mood are stored per turn.',
                 ),
               ],
             ),
@@ -360,12 +295,7 @@ class _VoicePageState extends State<VoicePage> {
           ],
           if (_error != null) ...[
             const SizedBox(height: 14),
-            FeatureCard(
-              color: HappifyColors.redSurface,
-              child: const Text(
-                'We could not process this recording. Please try again.',
-              ),
-            ),
+            FeatureCard(color: const Color(0xFFFBE4DE), child: Text(_error!)),
           ],
           if (_turn != null) ...[
             const SizedBox(height: 20),
@@ -463,127 +393,42 @@ class _VoicePageState extends State<VoicePage> {
             ),
           ],
           const SizedBox(height: 24),
-          Text('Riwayat sesi', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Saved session turns',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 10),
           AsyncStateView(
             loading: _loadingTurns,
             error: _turnsError,
             isEmpty: !_loadingTurns && _turns.isEmpty,
             emptyMessage:
-                'Riwayat sesi akan muncul setelah rekaman pertama diproses.',
+                'Your transcript history will appear here after the first upload.',
             onRetry: _loadTurns,
             child: Column(
-              children: _sessions.reversed.take(10).map((session) {
-                final sessionNumber = _sessions.indexOf(session) + 1;
-                final active = session.id == _sessionId;
+              children: _turns.take(10).map((turn) {
+                final mood = turn['detectedMood']?.toString() ?? 'NEUTRAL';
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FeatureCard(
-                    color: active ? HappifyColors.blueSurface : null,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              PhosphorIcons.chatCircleText(
-                                PhosphorIconsStyle.duotone,
-                              ),
-                              color: HappifyColors.blueDark,
-                              size: 28,
-                            ),
-                            const SizedBox(width: 10),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Sesi $sessionNumber',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${session.turns.length} rekaman · ${shortDate(session.startedAt)}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? HappifyColors.greenSurface
-                                    : HappifyColors.surfaceMuted,
-                                borderRadius: BorderRadius.circular(
-                                  HappifyRadii.pill,
-                                ),
-                              ),
                               child: Text(
-                                active ? 'Aktif' : 'Tersimpan',
-                                style: Theme.of(context).textTheme.labelSmall,
+                                '${prettyEnum(mood)} · ${prettyEnum(turn['riskLevel'])}',
+                                style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ),
+                            Text(shortDate(turn['createdAt'])),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        ...session.turns.take(3).map((turn) {
-                          final mood =
-                              turn['detectedMood']?.toString() ?? 'NEUTRAL';
-                          final transcript = turn['transcript']?.toString();
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 9),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .72),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            '${prettyEnum(mood)} · ${prettyEnum(turn['riskLevel'])}',
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.labelLarge,
-                                          ),
-                                        ),
-                                        Text(
-                                          shortDate(turn['createdAt']),
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.labelSmall,
-                                        ),
-                                      ],
-                                    ),
-                                    if (transcript != null &&
-                                        transcript.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(transcript),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                        if (session.turns.length > 3)
-                          Text(
-                            '+ ${session.turns.length - 3} rekaman lainnya',
-                            style: Theme.of(context).textTheme.bodySmall,
+                        if (turn['transcript'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(turn['transcript'].toString()),
                           ),
                       ],
                     ),
@@ -737,7 +582,7 @@ class _CarePageState extends State<CarePage> {
               children: [
                 FilledButton.icon(
                   onPressed: () => _request(),
-                  icon: Icon(PhosphorIcons.plus(PhosphorIconsStyle.bold)),
+                  icon: const Icon(Icons.add),
                   label: const Text('New care request'),
                 ),
                 const SizedBox(height: 18),
@@ -748,7 +593,7 @@ class _CarePageState extends State<CarePage> {
                 if (_referrals.isEmpty) const Text('No care requests yet.'),
                 ..._referrals.map(
                   (item) => ListTile(
-                    leading: HappifyEmoji.medical(size: 34),
+                    leading: const Icon(Icons.health_and_safety),
                     title: Text(item['reason'].toString()),
                     subtitle: Text(
                       '${prettyEnum(item['status'])} · ${prettyEnum(item['riskLevel'])} · ${shortDate(item['createdAt'])}',
@@ -765,7 +610,7 @@ class _CarePageState extends State<CarePage> {
                 ..._chats.map(
                   (chat) => ListTile(
                     onTap: () => _openChat(chat['id'].toString()),
-                    leading: HappifyEmoji.chat(size: 34),
+                    leading: const Icon(Icons.chat),
                     title: Text(
                       objectMap(
                             chat['psychologist'],
@@ -775,9 +620,7 @@ class _CarePageState extends State<CarePage> {
                     subtitle: Text(
                       '${prettyEnum(chat['status'])} · ${shortDate(chat['updatedAt'])}',
                     ),
-                    trailing: Icon(
-                      PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
-                    ),
+                    trailing: const Icon(Icons.chevron_right),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -914,8 +757,7 @@ class _CareChatSheetState extends State<CareChatSheet> {
                   ),
                 ],
               ),
-              if (_error != null)
-                const Text('Care chat is temporarily unavailable.'),
+              if (_error != null) Text(_error!),
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -950,9 +792,7 @@ class _CareChatSheetState extends State<CareChatSheet> {
                   ),
                   IconButton(
                     onPressed: _session['status'] == 'OPEN' ? _send : null,
-                    icon: Icon(
-                      PhosphorIcons.paperPlaneTilt(PhosphorIconsStyle.bold),
-                    ),
+                    icon: const Icon(Icons.send),
                     tooltip: 'Send message',
                   ),
                 ],
@@ -1102,13 +942,13 @@ class _CompanionPageState extends State<CompanionPage> {
       appBar: AppBar(title: const Text('Happify Companion')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _startPairing,
-        icon: Icon(PhosphorIcons.link(PhosphorIconsStyle.bold)),
+        icon: const Icon(Icons.link),
         label: const Text('Pair device'),
       ),
       body: HappifyPage(
         refresh: _load,
         children: [
-          Center(child: HappifyEmoji.companion(size: 96)),
+          const Center(child: QuokkaBadge(size: 130, calm: true)),
           const SizedBox(height: 12),
           if (_pairing != null) ...[
             FeatureCard(
@@ -1191,7 +1031,7 @@ class _CompanionPageState extends State<CompanionPage> {
                         },
                         child: Row(
                           children: [
-                            HappifyEmoji.companion(size: 34),
+                            const Icon(Icons.watch, size: 34),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -1210,9 +1050,7 @@ class _CompanionPageState extends State<CompanionPage> {
                                 ],
                               ),
                             ),
-                            Icon(
-                              PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
-                            ),
+                            const Icon(Icons.chevron_right),
                           ],
                         ),
                       ),

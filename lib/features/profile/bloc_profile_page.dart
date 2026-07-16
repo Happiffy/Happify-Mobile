@@ -139,14 +139,13 @@ class _BlocProfileViewState extends State<BlocProfileView> {
         return HappifyPage(
           title: 'Profile',
           refresh: context.read<ProfileCubit>().load,
-          bottomPadding: 110,
           actions: [
             IconButton(
               onPressed:
                   state.profile == null || state.isSaving || _runningAction
                   ? null
                   : () => _editProfile(state.profile!),
-              icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold)),
+              icon: const Icon(Icons.edit),
               tooltip: 'Edit profile',
             ),
           ],
@@ -284,11 +283,12 @@ class _BlocProfileViewState extends State<BlocProfileView> {
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
+              height: 52,
               child: OutlinedButton.icon(
                 onPressed: _runningAction
                     ? null
                     : () => _runAction(widget.onSignOut),
-                icon: Icon(PhosphorIcons.signOut(PhosphorIconsStyle.bold)),
+                icon: const Icon(Icons.logout),
                 label: Text(_runningAction ? 'Please wait...' : 'Sign out'),
               ),
             ),
@@ -338,11 +338,7 @@ class _ProfileSummary extends StatelessWidget {
         FeatureCard(
           child: Column(
             children: [
-              HappifyAvatar(
-                size: 104,
-                imageUrl: profile.avatarUrl,
-                fallbackName: profile.displayName,
-              ),
+              const QuokkaBadge(size: 104),
               const SizedBox(height: 12),
               Text(
                 profile.displayName.isEmpty
@@ -359,7 +355,7 @@ class _ProfileSummary extends StatelessWidget {
               const SizedBox(height: 14),
               FilledButton.tonalIcon(
                 onPressed: onEdit,
-                icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold)),
+                icon: const Icon(Icons.edit),
                 label: const Text('Edit display name and bio'),
               ),
             ],
@@ -498,9 +494,7 @@ class _PsychologistApplicationCard extends StatelessWidget {
             onPressed: status == PsychologistApplicationStatus.pending
                 ? null
                 : onApply,
-            icon: Icon(
-              PhosphorIcons.identificationCard(PhosphorIconsStyle.bold),
-            ),
+            icon: const Icon(Icons.badge_outlined),
             label: Text(
               status == PsychologistApplicationStatus.rejected
                   ? 'Update application'
@@ -525,7 +519,7 @@ class _ProfileLoadCard extends StatelessWidget {
       child: Column(
         children: [
           Icon(
-            PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
+            Icons.warning_amber_rounded,
             color: Theme.of(context).colorScheme.error,
             size: 34,
           ),
@@ -596,10 +590,7 @@ class _ProfileActionTile extends StatelessWidget {
         onTap: onTap,
         child: Row(
           children: [
-            SizedBox.square(
-              dimension: 44,
-              child: Center(child: ExcludeSemantics(child: icon)),
-            ),
+            SizedBox.square(dimension: 44, child: Center(child: icon)),
 
             const SizedBox(width: 12),
             Expanded(
@@ -833,8 +824,11 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                     const SizedBox(height: 8),
                     Semantics(
                       liveRegion: true,
-                      child: const Text(
-                        'We could not save your profile. Please try again.',
+                      child: Text(
+                        state.saveError!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
                   ],

@@ -155,7 +155,7 @@ flutter build appbundle --release --dart-define-from-file=.env
 
 ```bash
 flutter analyze
-flutter build apk --debug --dart-define-from-file=.env
+flutter test
 ```
 
 ---

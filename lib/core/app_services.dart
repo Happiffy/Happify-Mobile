@@ -8,18 +8,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const backendUrl = String.fromEnvironment(
   'BE_API_URL',
-  defaultValue: 'https://happify-be-production.up.railway.app',
-);
-
-const googleServerClientId = String.fromEnvironment(
-  'GOOGLE_SERVER_CLIENT_ID',
-  defaultValue:
-      '402141330645-p76mroh1dil5rv759kme7obupescq8id.apps.googleusercontent.com',
+  defaultValue: 'http://localhost:4000',
 );
 
 class AppFailure implements Exception {
@@ -80,9 +73,9 @@ class ApiClient {
               'This Firebase account is not registered with Happify.',
             null || '' =>
               error.type == DioExceptionType.connectionError
-                  ? 'Happify is offline. Check your connection and try again.'
-                  : 'Something went wrong. Please try again.',
-            _ => 'Something went wrong. Please try again.',
+                  ? 'Cannot reach the Happify service at $backendUrl.'
+                  : 'The request could not be completed.',
+            _ => backendMessage.replaceAll('_', ' ').toLowerCase(),
           };
           handler.reject(
             DioException(
@@ -149,8 +142,8 @@ class AuthController extends ChangeNotifier {
   bool restoring = true;
   bool busy = false;
   String? error;
+  bool guest = false;
   bool consentReviewed = false;
-  bool googleReady = false;
 
   bool get signedIn =>
       firebaseReady && FirebaseAuth.instance.currentUser != null;
@@ -163,18 +156,6 @@ class AuthController extends ChangeNotifier {
       restoring = false;
       notifyListeners();
       return;
-    }
-    try {
-      await GoogleSignIn.instance.initialize(
-        serverClientId: googleServerClientId,
-      );
-      googleReady = true;
-    } on GoogleSignInException catch (exception) {
-      googleReady = false;
-      error = _googleMessage(exception);
-    } catch (_) {
-      googleReady = false;
-      error = 'Google sign-in is not available on this device.';
     }
     _subscription = FirebaseAuth.instance.authStateChanges().listen((
       user,
@@ -247,6 +228,7 @@ class AuthController extends ChangeNotifier {
         data: {'idToken': token, 'mode': 'login'},
       );
       backendUser = objectMap(data['user']);
+      guest = false;
       consentReviewed = false;
       return true;
     } catch (exception) {
@@ -258,53 +240,6 @@ class AuthController extends ChangeNotifier {
           await FirebaseAuth.instance.signOut();
         } catch (_) {}
       }
-      return false;
-    } finally {
-      busy = false;
-      restoring = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> signInWithGoogle({required bool registerMode}) async {
-    if (!firebaseReady || !googleReady) {
-      error =
-          firebaseError ?? 'Google sign-in is not configured for this build.';
-      notifyListeners();
-      return false;
-    }
-    busy = true;
-    error = null;
-    notifyListeners();
-    try {
-      final account = await GoogleSignIn.instance.authenticate();
-      final googleAuth = account.authentication;
-      final idToken = googleAuth.idToken;
-      if (idToken == null || idToken.isEmpty) {
-        throw const AppFailure('Google did not return an identity token.');
-      }
-      final credential = GoogleAuthProvider.credential(idToken: idToken);
-      final firebaseCredential = await FirebaseAuth.instance
-          .signInWithCredential(credential);
-      final token = await firebaseCredential.user?.getIdToken(true);
-      final data = await api.request(
-        'POST',
-        '/auth/verify',
-        data: {
-          'idToken': token,
-          'displayName': account.displayName,
-          'mode': registerMode ? 'register' : 'login',
-        },
-      );
-      backendUser = objectMap(data['user']);
-      consentReviewed = false;
-      return true;
-    } catch (exception) {
-      backendUser = null;
-      error = _authMessage(exception);
-      try {
-        await FirebaseAuth.instance.signOut();
-      } catch (_) {}
       return false;
     } finally {
       busy = false;
@@ -341,6 +276,7 @@ class AuthController extends ChangeNotifier {
         data: {'idToken': token, 'displayName': name, 'mode': 'register'},
       );
       backendUser = objectMap(data['user']);
+      guest = false;
       consentReviewed = false;
       return true;
     } catch (exception) {
@@ -392,54 +328,23 @@ class AuthController extends ChangeNotifier {
     }
     if (firebaseReady) await FirebaseAuth.instance.signOut();
     backendUser = null;
+    guest = false;
     consentReviewed = false;
     notifyListeners();
   }
 
-  String _authMessage(Object exception) {
-    if (exception is GoogleSignInException) {
-      return _googleMessage(exception);
-    }
-    if (exception is FirebaseAuthException) {
-      return switch (exception.code) {
-        'invalid-email' => 'Enter a valid email address.',
-        'user-not-found' ||
-        'wrong-password' ||
-        'invalid-credential' => 'The email or password is incorrect.',
-        'email-already-in-use' => 'An account already uses this email.',
-        'weak-password' =>
-          'Use a stronger password with at least 6 characters.',
-        'network-request-failed' =>
-          'Check your internet connection and try again.',
-        'too-many-requests' => 'Please wait a moment before trying again.',
-        _ => 'Authentication could not be completed. Please try again.',
-      };
-    }
-    if (exception is AppFailure) {
-      return switch (exception.message) {
-        'This Firebase account is not registered with Happify.' =>
-          'No Happify account was found. Create an account first.',
-        _ when exception.message.contains('Cannot reach') =>
-          'Happify is temporarily unavailable. Please try again shortly.',
-        _ => 'Authentication could not be completed. Please try again.',
-      };
-    }
-    return 'Authentication could not be completed. Please try again.';
+  void continueAsGuest() {
+    guest = true;
+    error = null;
+    notifyListeners();
   }
 
-  String _googleMessage(
-    GoogleSignInException exception,
-  ) => switch (exception.code) {
-    GoogleSignInExceptionCode.canceled => 'Google sign-in was cancelled.',
-    GoogleSignInExceptionCode.interrupted =>
-      'Google sign-in was interrupted. Please try again.',
-    GoogleSignInExceptionCode.clientConfigurationError ||
-    GoogleSignInExceptionCode.providerConfigurationError =>
-      'Google sign-in is not configured for this app build. Add the Android debug SHA-1 to Firebase.',
-    GoogleSignInExceptionCode.uiUnavailable =>
-      'Google sign-in cannot open on this device right now.',
-    _ => 'Google sign-in could not be completed. Please try again.',
-  };
+  String _authMessage(Object exception) {
+    if (exception is FirebaseAuthException) {
+      return exception.message ?? 'Firebase authentication failed.';
+    }
+    return _message(exception);
+  }
 
   String _message(Object exception) =>
       exception is AppFailure ? exception.message : 'The operation failed.';

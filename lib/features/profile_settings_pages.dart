@@ -4,12 +4,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../core/app_services.dart';
 import '../core/happify_repository.dart';
 import '../core/widgets/common_widgets.dart';
-import '../core/widgets/happify_emoji.dart';
 import '../core/widgets/quokka_badge.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -146,7 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final services = AppServices.of(context);
     if (!services.auth.canUseProtectedFeatures) {
-      return SignInGuard(
+      return GuestGuard(
         child: FilledButton(
           onPressed: () => context.go('/welcome'),
           child: const Text('Return to Welcome'),
@@ -174,11 +172,7 @@ class _ProfilePageState extends State<ProfilePage> {
           },
           child: Column(
             children: [
-              HappifyAvatar(
-                size: 104,
-                imageUrl: _profile['avatarUrl']?.toString(),
-                fallbackName: _profile['displayName']?.toString(),
-              ),
+              const QuokkaBadge(size: 104),
               const SizedBox(height: 12),
               Text(
                 _profile['displayName']?.toString() ?? 'Happify member',
@@ -754,29 +748,29 @@ class _EmergencyContactsPageState extends State<EmergencyContactsPage> {
                     subtitle: Text(
                       '${contact['relationship']} · ${contact['phone']}${contact['isPrimary'] == true ? ' · Primary' : ''}',
                     ),
-                    leading: HappifyEmoji.profile(size: 34),
-                    trailing: PopupMenuButton<String>(
-                      tooltip: 'Contact actions',
-                      onSelected: (action) async {
-                        switch (action) {
-                          case 'call':
-                            _dial(contact['phone'].toString());
-                          case 'edit':
-                            _edit(contact);
-                          case 'delete':
+                    leading: const Icon(Icons.person),
+                    trailing: Wrap(
+                      children: [
+                        IconButton(
+                          onPressed: () => _dial(contact['phone'].toString()),
+                          icon: const Icon(Icons.call),
+                          tooltip: 'Open dialer',
+                        ),
+                        IconButton(
+                          onPressed: () => _edit(contact),
+                          icon: const Icon(Icons.edit),
+                          tooltip: 'Edit',
+                        ),
+                        IconButton(
+                          onPressed: () async {
                             await HappifyRepository(
                               AppServices.of(context).auth.api,
                             ).deleteEmergencyContact(contact['id'].toString());
                             await _load();
-                        }
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: 'call',
-                          child: Text('Open dialer'),
+                          },
+                          icon: const Icon(Icons.delete),
+                          tooltip: 'Delete',
                         ),
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(value: 'delete', child: Text('Delete')),
                       ],
                     ),
                   ),
@@ -798,9 +792,7 @@ class _EmergencyContactsPageState extends State<EmergencyContactsPage> {
                         : IconButton(
                             onPressed: () =>
                                 _dial(provider['phone'].toString()),
-                            icon: Icon(
-                              PhosphorIcons.phoneCall(PhosphorIconsStyle.bold),
-                            ),
+                            icon: const Icon(Icons.call),
                             tooltip: 'Open dialer',
                           ),
                   ),

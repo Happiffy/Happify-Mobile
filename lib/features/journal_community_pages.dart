@@ -8,7 +8,6 @@ import '../core/happify_repository.dart';
 import '../core/theme/happify_colors.dart';
 import '../core/widgets/common_widgets.dart';
 import '../core/widgets/happify_button.dart';
-import '../core/widgets/happify_rich_text.dart';
 
 class JournalPage extends StatefulWidget {
   const JournalPage({super.key});
@@ -94,7 +93,7 @@ class _JournalPageState extends State<JournalPage> {
   @override
   Widget build(BuildContext context) {
     if (!AppServices.of(context).auth.canUseProtectedFeatures) {
-      return const SignInGuard(
+      return const GuestGuard(
         child: Text('Private journaling is ready after sign in.'),
       );
     }
@@ -171,7 +170,7 @@ class _JournalPageState extends State<JournalPage> {
                           ),
                           Text(shortDate(item['createdAt'])),
                           const SizedBox(height: 6),
-                          HappifyRichText(item['content']?.toString() ?? ''),
+                          Text(item['content']?.toString() ?? ''),
                           if (item['detectedMood'] != null) ...[
                             const SizedBox(height: 8),
                             Text(
@@ -370,7 +369,7 @@ class _CommunityPageState extends State<CommunityPage> {
   @override
   Widget build(BuildContext context) {
     if (!AppServices.of(context).auth.canUseProtectedFeatures) {
-      return const SignInGuard(
+      return const GuestGuard(
         child: Text('Community support is available after sign in.'),
       );
     }
@@ -456,7 +455,7 @@ class _CommunityPageState extends State<CommunityPage> {
                                               ),
                                             ],
                                           ),
-                                          HappifyRichText(
+                                          Text(
                                             post['content']?.toString() ?? '',
                                           ),
                                           const SizedBox(height: 8),

@@ -98,7 +98,7 @@ class _MoodPageState extends State<MoodPage> {
   Widget build(BuildContext context) {
     final auth = AppServices.of(context).auth;
     if (!auth.canUseProtectedFeatures) {
-      return const SignInGuard(
+      return const GuestGuard(
         child: Text('Mood tracking is ready after sign in.'),
       );
     }

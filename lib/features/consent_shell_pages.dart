@@ -13,6 +13,7 @@ import '../core/theme/happify_colors.dart';
 import '../core/widgets/common_widgets.dart';
 import '../core/widgets/happify_button.dart';
 import '../core/widgets/happify_emoji.dart';
+import '../core/widgets/quokka_badge.dart';
 import 'community/bloc_community_page.dart';
 import 'home/bloc_home_page.dart';
 import 'journal/bloc_journal_page.dart';
@@ -101,7 +102,7 @@ class _ConsentPageState extends State<ConsentPage> {
       body: HappifyPage(
         title: 'Your data stays yours.',
         children: [
-          Center(child: HappifyEmoji.shield(size: 72)),
+          const Center(child: QuokkaBadge(size: 100, calm: true)),
           const SizedBox(height: 16),
           Text(
             'Choose which optional Happify features may process your data. You can change these choices later.',
@@ -384,135 +385,77 @@ class _HappifyShellState extends State<HappifyShell>
 
   @override
   Widget build(BuildContext context) {
-    final navigationDestinations = [
-      NavigationDestination(
-        icon: HappifyEmoji.overview(size: 28),
-        selectedIcon: HappifyEmoji.overview(size: 30),
-        label: 'Home',
-      ),
-      NavigationDestination(
-        icon: HappifyEmoji.mood(size: 28),
-        selectedIcon: HappifyEmoji.mood(size: 30),
-        label: 'Mood',
-      ),
-      NavigationDestination(
-        icon: HappifyEmoji.records(size: 28),
-        selectedIcon: HappifyEmoji.records(size: 30),
-        label: 'Journal',
-      ),
-      NavigationDestination(
-        icon: HappifyEmoji.community(size: 28),
-        selectedIcon: HappifyEmoji.community(size: 30),
-        label: 'Community',
-      ),
-      NavigationDestination(
-        icon: HappifyEmoji.profile(size: 28),
-        selectedIcon: HappifyEmoji.profile(size: 30),
-        label: 'Profile',
-      ),
-    ];
-    final railDestinations = [
-      NavigationRailDestination(
-        icon: HappifyEmoji.overview(size: 28),
-        selectedIcon: HappifyEmoji.overview(size: 30),
-        label: const Text('Home'),
-      ),
-      NavigationRailDestination(
-        icon: HappifyEmoji.mood(size: 28),
-        selectedIcon: HappifyEmoji.mood(size: 30),
-        label: const Text('Mood'),
-      ),
-      NavigationRailDestination(
-        icon: HappifyEmoji.records(size: 28),
-        selectedIcon: HappifyEmoji.records(size: 30),
-        label: const Text('Journal'),
-      ),
-      NavigationRailDestination(
-        icon: HappifyEmoji.community(size: 28),
-        selectedIcon: HappifyEmoji.community(size: 30),
-        label: const Text('Community'),
-      ),
-      NavigationRailDestination(
-        icon: HappifyEmoji.profile(size: 28),
-        selectedIcon: HappifyEmoji.profile(size: 30),
-        label: const Text('Profile'),
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final expanded = constraints.maxWidth >= 900;
-        final content = Column(
-          children: [
-            if (_pushError != null)
-              MaterialBanner(
-                content: Text(_pushError!),
-                actions: [
-                  TextButton(
-                    onPressed: () => setState(() => _pushError = null),
-                    child: const Text('Dismiss'),
-                  ),
-                ],
-              ),
-            Expanded(
-              child: IndexedStack(
-                index: _tab,
-                children: List.generate(
-                  _pages.length,
-                  (index) => _pages[index] != null || index == _tab
-                      ? _page(index)
-                      : const SizedBox.shrink(),
+    return Scaffold(
+      body: Column(
+        children: [
+          if (_pushError != null)
+            MaterialBanner(
+              content: Text(_pushError!),
+              actions: [
+                TextButton(
+                  onPressed: () => setState(() => _pushError = null),
+                  child: const Text('Dismiss'),
                 ),
+              ],
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _tab,
+              children: List.generate(
+                _pages.length,
+                (index) => _pages[index] != null || index == _tab
+                    ? _page(index)
+                    : const SizedBox.shrink(),
               ),
             ),
-          ],
-        );
-        return Scaffold(
-          body: expanded
-              ? Row(
-                  children: [
-                    SafeArea(
-                      child: NavigationRail(
-                        extended: true,
-                        minExtendedWidth: 216,
-                        selectedIndex: _tab,
-                        useIndicator: true,
-                        indicatorColor: HappifyColors.greenSurface,
-                        backgroundColor: Colors.white,
-                        leading: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                          child: HappifyEmoji.sparkle(size: 42),
-                        ),
-                        onDestinationSelected: (value) =>
-                            setState(() => _tab = value),
-                        destinations: railDestinations,
-                      ),
-                    ),
-                    const VerticalDivider(width: 2, thickness: 2),
-                    Expanded(child: content),
-                  ],
-                )
-              : content,
-          floatingActionButton: FloatingActionButton(
-            heroTag: 'sos',
-            tooltip: 'Open support options',
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              builder: (_) => const SosSheet(),
-            ),
-            child: Icon(PhosphorIcons.firstAidKit(PhosphorIconsStyle.bold)),
           ),
-          bottomNavigationBar: expanded
-              ? null
-              : NavigationBar(
-                  selectedIndex: _tab,
-                  onDestinationSelected: (value) =>
-                      setState(() => _tab = value),
-                  destinations: navigationDestinations,
-                ),
-        );
-      },
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'sos',
+        tooltip: 'Open SOS support',
+        backgroundColor: HappifyColors.coral,
+        foregroundColor: Colors.white,
+        onPressed: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const SosSheet(),
+        ),
+        icon: Icon(PhosphorIcons.lifebuoy(PhosphorIconsStyle.fill)),
+        label: const Text('SOS'),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        onDestinationSelected: (value) => setState(() => _tab = value),
+        destinations: [
+          NavigationDestination(
+            icon: HappifyEmoji.overview(size: 28),
+            selectedIcon: HappifyEmoji.overview(size: 32),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: HappifyEmoji.mood(size: 28),
+            selectedIcon: HappifyEmoji.mood(size: 32),
+            label: 'Mood',
+          ),
+          NavigationDestination(
+            icon: HappifyEmoji.journal(size: 28),
+            selectedIcon: HappifyEmoji.journal(size: 32),
+            label: 'Journal',
+          ),
+          NavigationDestination(
+            icon: HappifyEmoji.community(size: 28),
+            selectedIcon: HappifyEmoji.community(size: 32),
+            label: 'Community',
+          ),
+          NavigationDestination(
+            icon: HappifyEmoji.profile(size: 28),
+            selectedIcon: HappifyEmoji.profile(size: 32),
+            label: 'Profile',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -582,17 +525,13 @@ class _HomePageState extends State<HomePage> {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ),
-              Icon(
-                PhosphorIcons.signIn(PhosphorIconsStyle.duotone),
-                size: 54,
-                color: HappifyColors.greenDark,
-              ),
+              const QuokkaBadge(size: 68),
             ],
           ),
           const SizedBox(height: 20),
           const FeatureCard(
             child: Text(
-              'Sign in to securely use mood tracking, journaling, community, voice, care, and Companion features.',
+              'Guest mode keeps your device free of personal wellbeing records. Sign in to use mood tracking, journaling, community, voice, care, and Companion features.',
             ),
           ),
           const SizedBox(height: 16),
@@ -626,11 +565,7 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            Icon(
-              PhosphorIcons.userCircle(PhosphorIconsStyle.duotone),
-              size: 58,
-              color: HappifyColors.greenDark,
-            ),
+            const QuokkaBadge(size: 68),
           ],
         ),
         const SizedBox(height: 22),
@@ -671,17 +606,17 @@ class _HomePageState extends State<HomePage> {
                 runSpacing: 10,
                 children: [
                   ActionChip(
-                    avatar: HappifyEmoji.microphone(size: 24),
+                    avatar: const Icon(Icons.mic),
                     label: const Text('Voice companion'),
                     onPressed: () => context.push('/voice'),
                   ),
                   ActionChip(
-                    avatar: HappifyEmoji.care(size: 24),
+                    avatar: const Icon(Icons.favorite),
                     label: const Text('Professional care'),
                     onPressed: () => context.push('/care'),
                   ),
                   ActionChip(
-                    avatar: HappifyEmoji.companion(size: 24),
+                    avatar: const Icon(Icons.watch),
                     label: const Text('Companion device'),
                     onPressed: () => context.push('/companion'),
                   ),
@@ -770,7 +705,7 @@ class _SosSheetState extends State<SosSheet> {
             children: [
               Row(
                 children: [
-                  HappifyEmoji.grounding(size: 64),
+                  const QuokkaBadge(size: 72, calm: true),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -780,7 +715,7 @@ class _SosSheetState extends State<SosSheet> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold)),
+                    icon: const Icon(Icons.close),
                     tooltip: 'Close SOS',
                   ),
                 ],
@@ -801,11 +736,7 @@ class _SosSheetState extends State<SosSheet> {
                   await services.speech.speak(grounding);
                   if (mounted) setState(() => _speaking = false);
                 },
-                icon: Icon(
-                  _speaking
-                      ? PhosphorIcons.stop(PhosphorIconsStyle.fill)
-                      : PhosphorIcons.speakerHigh(PhosphorIconsStyle.bold),
-                ),
+                icon: Icon(_speaking ? Icons.stop : Icons.volume_up),
                 label: Text(
                   _speaking ? 'Stop guidance' : 'Read guidance aloud',
                 ),

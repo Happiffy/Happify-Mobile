@@ -15,7 +15,6 @@ import 'core/widgets/quokka_badge.dart';
 import 'core/widgets/responsive_page.dart';
 import 'features/pages.dart';
 import 'features/care/bloc_care_page.dart';
-import 'features/onboarding/account_onboarding_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,19 +57,24 @@ class _HappifyAppState extends State<HappifyApp> {
           return state.matchedLocation == '/' ? null : '/';
         }
         final inApp = state.matchedLocation.startsWith('/app');
-        final setup = state.matchedLocation.startsWith('/setup');
+        if (inApp &&
+            widget.auth.canUseProtectedFeatures &&
+            !widget.auth.consentReviewed) {
+          return '/consent';
+        }
         final accountOnly =
-            setup ||
             state.matchedLocation.startsWith('/consent') ||
             state.matchedLocation.startsWith('/companion') ||
             state.matchedLocation.startsWith('/care') ||
             state.matchedLocation.startsWith('/contacts') ||
             state.matchedLocation.startsWith('/voice');
-        if (inApp && !widget.auth.canUseProtectedFeatures) {
+        if (inApp &&
+            !widget.auth.canUseProtectedFeatures &&
+            !widget.auth.guest) {
           return '/welcome';
         }
         if (accountOnly && !widget.auth.canUseProtectedFeatures) {
-          return '/welcome';
+          return widget.auth.guest ? '/app' : '/welcome';
         }
         if (widget.auth.canUseProtectedFeatures &&
             (state.matchedLocation == '/login' ||
@@ -86,10 +90,6 @@ class _HappifyAppState extends State<HappifyApp> {
         GoRoute(path: '/welcome', builder: (_, _) => const WelcomePage()),
         GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
         GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
-        GoRoute(
-          path: '/setup',
-          builder: (_, _) => const AccountOnboardingPage(),
-        ),
         GoRoute(path: '/forgot', builder: (_, _) => const ForgotPasswordPage()),
         GoRoute(
           path: '/consent',
@@ -151,7 +151,6 @@ class _HappifyAppState extends State<HappifyApp> {
             theme: buildHappifyTheme(
               highContrast: widget.settings.highContrast,
             ),
-            scaffoldMessengerKey: scaffoldMessengerKey,
             builder: (context, child) {
               final media = MediaQuery.of(context);
               return MediaQuery(
@@ -210,9 +209,11 @@ class _SplashPageState extends State<SplashPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const HappifyMascot(size: 148, semanticLabel: 'Happify mascot'),
+            const QuokkaBadge(size: 148),
             const SizedBox(height: 24),
             Text('Happify', style: Theme.of(context).textTheme.displayLarge),
+            const SizedBox(height: 10),
+            const CircularProgressIndicator(),
           ],
         ),
       ),
@@ -227,32 +228,29 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _IntroSlide {
-  const _IntroSlide(this.title, this.description, this.asset);
-
-  final String title;
-  final String description;
-  final String asset;
-}
-
 class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _controller = PageController();
   int _index = 0;
-  static const slides = <_IntroSlide>[
-    _IntroSlide(
-      'Understand your emotions',
-      'Check in gently and see mood patterns without judgment.',
-      'assets/illustrations/onboarding-companion.png',
+  static const slides = [
+    (
+      'Understand your emotions without judgment',
+      'Track moods and notice patterns gently.',
+      Color(0xFFF7E0C7),
     ),
-    _IntroSlide(
-      'Reflect in your own space',
-      'Journal privately and connect with a moderated anonymous community.',
-      'assets/illustrations/onboarding-reflect.png',
+    (
+      'You are not alone',
+      'Journal privately and find anonymous community support.',
+      Color(0xFFE6DCF0),
     ),
-    _IntroSlide(
-      'Support when you need it',
-      'Talk with AI Companion, use grounding tools, or reach professional care.',
-      'assets/illustrations/onboarding-support.png',
+    (
+      'Grow at your own pace',
+      'Use guided mindfulness and personalized insights.',
+      Color(0xFFDCE7D6),
+    ),
+    (
+      'Choose what matters today',
+      'Start with calm, connection, sleep, or understanding your emotions. You can change this anytime.',
+      Color(0xFFFBE4DE),
     ),
   ];
 
@@ -290,27 +288,24 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
-                          flex: 6,
-                          child: Semantics(
-                            image: true,
-                            label: '${slide.title} illustration',
-                            child: Image.asset(
-                              slide.asset,
-                              fit: BoxFit.contain,
-                              excludeFromSemantics: true,
-                            ),
+                        Container(
+                          width: 210,
+                          height: 210,
+                          decoration: BoxDecoration(
+                            color: slide.$3,
+                            shape: BoxShape.circle,
                           ),
+                          child: const Center(child: QuokkaBadge(size: 170)),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 42),
                         Text(
-                          slide.title,
+                          slide.$1,
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.headlineMedium,
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          slide.description,
+                          slide.$2,
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
@@ -370,61 +365,51 @@ class WelcomePage extends StatelessWidget {
         ? services?.auth.firebaseError
         : null;
     return Scaffold(
-      backgroundColor: Colors.white,
       body: ResponsivePage(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 16),
-            Center(
-              child: Image.asset(
-                'assets/illustrations/auth-welcome.png',
-                height: 250,
-                fit: BoxFit.contain,
-                semanticLabel: 'Happify mascot with a journal and phone',
-              ),
-            ),
-            const SizedBox(height: 22),
+            const QuokkaBadge(size: 160),
+            const SizedBox(height: 28),
             Text(
-              'A friend who is here to listen.',
+              'A friend who is here\nto listen.',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineLarge,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Text(
               'Sign in to securely save your moods, journal entries, and insights.',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 28),
-            GoogleAuthButton(
-              label: 'Continue with Google',
-              loading: services?.auth.busy == true,
-              onPressed: () async {
-                final success = await services?.auth.signInWithGoogle(
-                  registerMode: false,
-                );
-                if (success == true && context.mounted) context.go('/app');
-                if (success == false && context.mounted) {
-                  showErrorToast(
-                    context,
-                    'Google sign-in failed',
-                    message: services?.auth.error,
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 12),
+            if (firebaseError != null) ...[
+              const SizedBox(height: 18),
+              FeatureCard(
+                color: const Color(0xFFFBE4DE),
+                child: Text(firebaseError, textAlign: TextAlign.center),
+              ),
+            ],
+            const SizedBox(height: 34),
             HappifyButton(
-              label: 'Continue with email',
-              icon: PhosphorIcons.envelopeSimple(PhosphorIconsStyle.bold),
-              background: Colors.white,
-              foreground: HappifyColors.blueDark,
+              label: 'Sign in',
+              icon: PhosphorIcons.signIn(PhosphorIconsStyle.bold),
               onPressed: () => context.go('/login'),
             ),
-            if (firebaseError != null) const SizedBox(height: 12),
             const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: OutlinedButton(
+                onPressed: () => context.go('/register'),
+                child: const Text('Create account'),
+              ),
+            ),
             TextButton(
-              onPressed: () => context.go('/register'),
-              child: const Text('Create an account'),
+              onPressed: () {
+                services?.auth.continueAsGuest();
+                context.go('/app');
+              },
+              child: const Text('Continue as guest'),
             ),
           ],
         ),
@@ -462,7 +447,6 @@ class _AuthPageState extends State<AuthPage> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  bool _showPassword = false;
 
   @override
   void dispose() {
@@ -479,34 +463,9 @@ class _AuthPageState extends State<AuthPage> {
         ? await auth.login(_email.text, _password.text)
         : await auth.register(_name.text, _email.text, _password.text);
     if (!mounted) return;
-    if (!success) {
-      showErrorToast(
-        context,
-        widget.mode == AuthMode.login
-            ? 'Sign in failed'
-            : 'Account not created',
-        message: auth.error,
-      );
-      return;
+    if (success) {
+      context.go('/app');
     }
-    showSuccessToast(
-      context,
-      widget.mode == AuthMode.login ? 'Welcome back' : 'Account created',
-    );
-    context.go(widget.mode == AuthMode.register ? '/setup' : '/app');
-  }
-
-  Future<void> _submitGoogle() async {
-    final auth = AppServices.of(context).auth;
-    final registering = widget.mode == AuthMode.register;
-    final success = await auth.signInWithGoogle(registerMode: registering);
-    if (!mounted) return;
-    if (!success) {
-      showErrorToast(context, 'Google sign-in failed', message: auth.error);
-      return;
-    }
-    showSuccessToast(context, registering ? 'Account created' : 'Welcome back');
-    context.go(registering ? '/setup' : '/app');
   }
 
   @override
@@ -514,68 +473,29 @@ class _AuthPageState extends State<AuthPage> {
     final auth = AppServices.of(context).auth;
     final registering = widget.mode == AuthMode.register;
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: ResponsivePage(
+      body: SafeArea(
         child: Form(
           key: _form,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
+            padding: const EdgeInsets.all(24),
             children: [
-              IconButton(
-                onPressed: () => context.go('/welcome'),
-                icon: Icon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold)),
-                tooltip: 'Back',
-              ),
-              Center(
-                child: Image.asset(
-                  'assets/illustrations/auth-welcome.png',
-                  height: 185,
-                  fit: BoxFit.contain,
-                  semanticLabel: 'Happify mascot with a journal and phone',
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: () => context.go('/welcome'),
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Back',
                 ),
               ),
-              const SizedBox(height: 18),
-              Text(
-                registering ? 'Create account' : 'Sign in',
-                style: Theme.of(context).textTheme.headlineLarge,
-              ),
-              const SizedBox(height: 8),
+              const Center(child: QuokkaBadge(size: 104)),
+              const SizedBox(height: 22),
               Text(
                 registering
-                    ? 'Set up your safe space, then personalize how Happify supports you.'
-                    : 'Welcome back. Sign in to continue your private wellbeing journey.',
-                style: Theme.of(context).textTheme.bodyLarge,
+                    ? 'Create your safe space.'
+                    : 'It is good to have you back.',
+                style: Theme.of(context).textTheme.headlineLarge,
               ),
               const SizedBox(height: 22),
-              GoogleAuthButton(
-                label: registering
-                    ? 'Sign up with Google'
-                    : 'Sign in with Google',
-                loading: auth.busy,
-                onPressed: _submitGoogle,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Flexible(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'or continue with email',
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: HappifyColors.inkSoft,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 20),
               if (registering) ...[
                 TextFormField(
                   controller: _name,
@@ -602,35 +522,28 @@ class _AuthPageState extends State<AuthPage> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _password,
-                obscureText: !_showPassword,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => auth.busy ? null : _submit(),
+                obscureText: true,
                 autofillHints: registering
                     ? const [AutofillHints.newPassword]
                     : const [AutofillHints.password],
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  suffixIcon: IconButton(
-                    tooltip: _showPassword ? 'Hide password' : 'Show password',
-                    onPressed: () =>
-                        setState(() => _showPassword = !_showPassword),
-                    icon: Icon(
-                      _showPassword
-                          ? PhosphorIcons.eyeSlash(PhosphorIconsStyle.bold)
-                          : PhosphorIcons.eye(PhosphorIconsStyle.bold),
-                    ),
-                  ),
-                ),
+                decoration: const InputDecoration(labelText: 'Password'),
                 validator: (value) => value != null && value.length >= 6
                     ? null
                     : 'Use at least 6 characters.',
               ),
-              const SizedBox(height: 22),
+              if (auth.error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  auth.error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 24),
               HappifyButton(
                 label: auth.busy
-                    ? 'Loading...'
+                    ? 'Please wait...'
                     : registering
-                    ? 'Create account'
+                    ? 'Sign up'
                     : 'Sign in',
                 icon: PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
                 onPressed: auth.busy ? null : _submit,
@@ -638,7 +551,7 @@ class _AuthPageState extends State<AuthPage> {
               if (!registering)
                 TextButton(
                   onPressed: () => context.go('/forgot'),
-                  child: const Text('Forgot password?'),
+                  child: const Text('Forgot your password?'),
                 ),
               TextButton(
                 onPressed: () =>
@@ -683,7 +596,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           children: [
             IconButton(
               onPressed: () => context.go('/login'),
-              icon: Icon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold)),
+              icon: const Icon(Icons.arrow_back),
               tooltip: 'Back',
             ),
             const SizedBox(height: 28),
@@ -699,6 +612,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
+            if (auth.error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                auth.error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
             const SizedBox(height: 24),
             HappifyButton(
               label: auth.busy ? 'Sending...' : 'Send reset link',
@@ -708,20 +628,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   : () async {
                       final success = await auth.resetPassword(_email.text);
                       if (!context.mounted) return;
-                      if (!success) {
-                        showErrorToast(
-                          context,
-                          'Reset link not sent',
-                          message: auth.error,
-                        );
-                        return;
+                      if (success) {
+                        showMessage(context, 'Password reset email sent.');
+                        context.go('/login');
                       }
-                      showSuccessToast(
-                        context,
-                        'Reset link sent',
-                        message: 'Check your email to reset your password.',
-                      );
-                      context.go('/login');
                     },
             ),
           ],

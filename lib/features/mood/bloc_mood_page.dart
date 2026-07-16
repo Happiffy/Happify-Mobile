@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
-import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
 import '../../core/widgets/happify_emoji.dart';
@@ -18,7 +17,7 @@ class BlocMoodPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = AppServices.of(context).auth;
     if (!auth.canUseProtectedFeatures) {
-      return const SignInGuard(
+      return const GuestGuard(
         child: Text('Mood tracking is ready after sign in.'),
       );
     }
@@ -69,7 +68,6 @@ class _BlocMoodViewState extends State<_BlocMoodView> {
           return HappifyPage(
             title: 'Mood tracker',
             refresh: context.read<MoodCubit>().load,
-            bottomPadding: 110,
             children: [
               _MoodForm(note: _note, state: state),
               const SizedBox(height: 24),
@@ -123,9 +121,7 @@ class _MoodForm extends StatelessWidget {
               .map(
                 (option) => ChoiceChip(
                   selected: state.selectedMood == option.$1,
-                  avatar: ExcludeSemantics(
-                    child: happifyMoodEmoji(option.$1, size: 24),
-                  ),
+                  avatar: happifyMoodEmoji(option.$1, size: 24),
                   label: Text(option.$2),
 
                   onSelected: saving
@@ -230,7 +226,7 @@ class _DashboardInsight extends StatelessWidget {
           emptyMessage: 'Insights will appear as your wellbeing history grows.',
           onRetry: context.read<MoodCubit>().load,
           child: FeatureCard(
-            color: HappifyColors.purpleSurface,
+            color: const Color(0xFFE6DCF0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -274,7 +270,7 @@ class _VoiceMoodPattern extends StatelessWidget {
               'Analyzed Companion conversations will build your mood pattern here.',
           onRetry: context.read<MoodCubit>().load,
           child: FeatureCard(
-            color: HappifyColors.blueSurface,
+            color: const Color(0xFFEAF8FF),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -357,7 +353,7 @@ class _MoodTrend extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               mood.substring(0, 1),
-                              style: Theme.of(context).textTheme.labelSmall,
+                              style: const TextStyle(fontSize: 10),
                             ),
                           ],
                         ),

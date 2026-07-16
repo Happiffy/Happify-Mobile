@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'package:mobile_happify/core/app_services.dart';
-import 'package:mobile_happify/core/theme/happify_colors.dart';
 import 'package:mobile_happify/features/care/bloc/care_chat_cubit.dart';
 import 'package:mobile_happify/features/care/bloc/care_chat_state.dart';
 import 'package:mobile_happify/core/widgets/common_widgets.dart';
@@ -90,7 +89,7 @@ class _BlocCareView extends StatelessWidget {
               refresh: context.read<CareCubit>().refresh,
               children: [
                 const FeatureCard(
-                  color: HappifyColors.purpleSurface,
+                  color: Color(0xFFE6DCF0),
                   child: Text(
                     'Happify can connect signed-in users with configured care providers. It does not diagnose or replace emergency services.',
                   ),
@@ -110,9 +109,8 @@ class _BlocCareView extends StatelessWidget {
                         onPressed: state.submitting
                             ? null
                             : () => _request(context, null),
-                        icon: ExcludeSemantics(
-                          child: HappifyEmoji.referral(size: 28),
-                        ),
+                        icon: HappifyEmoji.referral(size: 28),
+
                         label: const Text('New care request'),
                       ),
                       const SizedBox(height: 18),
@@ -124,9 +122,8 @@ class _BlocCareView extends StatelessWidget {
                         const Text('No care requests yet.'),
                       ...overview.referrals.map(
                         (item) => ListTile(
-                          leading: ExcludeSemantics(
-                            child: HappifyEmoji.referral(size: 34),
-                          ),
+                          leading: HappifyEmoji.referral(size: 34),
+
                           title: Text(item['reason'].toString()),
                           subtitle: Text(
                             '${prettyEnum(item['status'])} · ${prettyEnum(item['riskLevel'])} · ${shortDate(item['createdAt'])}',
@@ -146,9 +143,8 @@ class _BlocCareView extends StatelessWidget {
                         (chat) => ListTile(
                           onTap: () =>
                               _openChat(context, chat['id'].toString()),
-                          leading: ExcludeSemantics(
-                            child: HappifyEmoji.chat(size: 34),
-                          ),
+                          leading: HappifyEmoji.chat(size: 34),
+
                           title: Text(
                             objectMap(
                                   chat['psychologist'],
@@ -262,14 +258,8 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
     return SafeArea(
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * .88,
-        child: AnimatedPadding(
-          duration: const Duration(milliseconds: 180),
-          padding: EdgeInsets.fromLTRB(
-            18,
-            18,
-            18,
-            18 + MediaQuery.viewInsetsOf(context).bottom,
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
           child: BlocBuilder<CareChatCubit, CareChatState>(
             builder: (context, state) {
               final messages = objectList(state.session['messages']);
@@ -292,8 +282,7 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                       ),
                     ],
                   ),
-                  if (state.errorMessage != null)
-                    const Text('Care chat is temporarily unavailable.'),
+                  if (state.errorMessage != null) Text(state.errorMessage!),
                   Expanded(
                     child: state.loading
                         ? const Center(child: CircularProgressIndicator())
