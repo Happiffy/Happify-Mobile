@@ -1,0 +1,54 @@
+name: mobile_happify
+description: Happify mobile wellbeing companion.
+publish_to: 'none'
+version: 1.3.0+4
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  go_router: ^17.3.0
+  google_fonts: ^8.1.0
+  phosphor_flutter: ^2.1.0
+  flutter_tts: ^4.2.5
+  audioplayers: ^6.7.1
+  firebase_core: ^4.11.0
+  firebase_auth: ^6.5.4
+  firebase_messaging: ^16.4.1
+  dio: ^5.10.0
+  record: ^6.2.1
+  shared_preferences: ^2.5.4
+  geolocator: ^14.0.2
+  url_launcher: ^6.3.2
+  path_provider: ^2.1.5
+  flutter_bloc: ^9.1.1
+  equatable: ^2.1.0
+  google_sign_in: ^7.2.0
+  sign_in_button: ^5.0.0
+  flutter_html: ^3.0.0
+  iconify_flutter: ^0.0.7
+  colorful_iconify_flutter: ^0.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/mascot/happify-app-icon.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/mascot/happify-app-icon.png
+  adaptive_icon_foreground_inset: 16
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/mascot/happify-app-icon.png
+    - assets/illustrations/
