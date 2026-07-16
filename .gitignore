@@ -3,7 +3,6 @@
 .secrets/
 
 # Firebase and Android release credentials
-google-services.json
 android/app/google-services.json
 android/key.properties
 **/*.jks
