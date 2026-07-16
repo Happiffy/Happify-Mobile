@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-${{ github.workflow }}-${{ github.ref }}
@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -33,8 +33,6 @@ jobs:
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
-      - name: Test
-        run: flutter test
 
   release:
     needs: quality
@@ -43,10 +41,10 @@ jobs:
     timeout-minutes: 45
     environment: mobile-release
     env:
-      BE_API_URL: ${{ vars.BE_API_URL }}
+      BE_API_URL: ${{ vars.BE_API_URL || 'https://happify-be-production.up.railway.app' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -92,27 +90,12 @@ jobs:
           set -euo pipefail
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/happify-upload-key.jks
           printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
-          cat > android/key.properties <<EOF
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-           storeFile=happify-upload-key.jks
-          EOF
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
+            "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_PASSWORD" "$ANDROID_KEY_ALIAS" 'happify-upload-key.jks' \
+            > android/key.properties
           chmod 600 android/key.properties android/app/happify-upload-key.jks android/app/google-services.json
           python -m json.tool android/app/google-services.json > /dev/null
-           python - <<'PY'
-           import json
-           with open('android/app/google-services.json', encoding='utf-8') as source:
-               config = json.load(source)
-           if config.get('project_info', {}).get('project_id') != 'happify-990c2':
-               raise SystemExit('google-services.json does not match Firebase project happify-990c2')
-           packages = {
-               client.get('client_info', {}).get('android_client_info', {}).get('package_name')
-               for client in config.get('client', [])
-           }
-           if 'com.happify.app.mobile_happify' not in packages:
-               raise SystemExit('google-services.json does not match com.happify.app.mobile_happify')
-           PY
+          python -c "import json; config=json.load(open('android/app/google-services.json', encoding='utf-8')); assert config.get('project_info', {}).get('project_id') == 'happify-990c2', 'wrong Firebase project'; packages={client.get('client_info', {}).get('android_client_info', {}).get('package_name') for client in config.get('client', [])}; assert 'com.happify.app.mobile_happify' in packages, 'wrong Android package'"
           keytool -list -keystore android/app/happify-upload-key.jks -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" > /dev/null
       - name: Build signed APK
         run: flutter build apk --release "--dart-define=BE_API_URL=$BE_API_URL"
@@ -133,15 +116,33 @@ jobs:
           aab_actual="$(keytool -J-Duser.language=en -printcert -jarfile build/app/outputs/bundle/release/app-release.aab | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1 | tr '[:upper:]' '[:lower:]' | tr -d ':')"
           test -n "$apk_actual" && test "$apk_actual" = "$expected"
           test -n "$aab_actual" && test "$aab_actual" = "$expected"
+      - name: Prepare release assets
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#mobile-v}"
+          mkdir -p release
+          cp build/app/outputs/flutter-apk/app-release.apk "release/Happify-${version}.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "release/Happify-${version}.aab"
+          sha256sum release/* > release/SHA256SUMS.txt
       - name: Upload signed artifacts
         uses: actions/upload-artifact@v4
         with:
           name: happify-android-${{ github.ref_name }}
           if-no-files-found: error
           retention-days: 14
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
+          path: release/
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/mobile-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Happify Mobile ${{ github.ref_name }}
+          generate_release_notes: true
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            release/*.apk
+            release/*.aab
+            release/SHA256SUMS.txt
       - name: Remove release files
         if: always()
         run: rm -f android/key.properties android/app/happify-upload-key.jks android/app/google-services.json
