@@ -397,6 +397,11 @@ class HappifyRepository {
     return objectList(data['items']);
   }
 
+  Future<Map<String, dynamic>> ensureCompanion() async {
+    final data = await api.request('POST', '/devices/companion');
+    return objectMap(data['device']);
+  }
+
   Future<Map<String, dynamic>> device(String id) async {
     final data = await api.request('GET', '/devices/$id');
     return objectMap(data['device']);

@@ -37,10 +37,14 @@ class CompanionCubit extends Cubit<CompanionState> {
     );
     try {
       final devices = await repository.devices();
+      if (devices.isEmpty) await repository.ensureCompanion();
+      final companionDevices = devices.isEmpty
+          ? await repository.devices()
+          : devices;
       emit(
         state.copyWith(
           status: CompanionStatus.success,
-          devices: List.unmodifiable(devices),
+          devices: List.unmodifiable(companionDevices),
           clearError: true,
         ),
       );

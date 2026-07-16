@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
+import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
 import '../../core/widgets/happify_emoji.dart';
+import '../../core/widgets/happify_rich_text.dart';
 import 'bloc/journal_cubit.dart';
 import 'bloc/journal_state.dart';
 import 'data/journal_repository.dart';
@@ -19,7 +20,7 @@ class BlocJournalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!AppServices.of(context).auth.canUseProtectedFeatures) {
-      return const GuestGuard(
+      return const SignInGuard(
         child: Text('Private journaling is ready after sign in.'),
       );
     }
@@ -89,6 +90,7 @@ class _BlocJournalViewState extends State<_BlocJournalView> {
         return HappifyPage(
           title: 'Journal',
           refresh: context.read<JournalCubit>().refresh,
+          bottomPadding: 110,
           children: [
             FeatureCard(
               child: Column(
@@ -150,7 +152,7 @@ class _BlocJournalViewState extends State<_BlocJournalView> {
             ),
             const SizedBox(height: 16),
             const FeatureCard(
-              color: Color(0xFFE6DCF0),
+              color: HappifyColors.purpleSurface,
               child: Text(
                 'If AI processing consent is active, Happify generates a gentle reflection. Otherwise the backend uses privacy-preserving local rules. High-risk entries create a care request.',
               ),
@@ -177,9 +179,9 @@ class _BlocJournalViewState extends State<_BlocJournalView> {
                   if (state.actionError != null && !state.creating)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: FeatureCard(
+                      child: const FeatureCard(
                         child: Text(
-                          state.actionError!,
+                          'We could not save this entry. Please try again.',
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -198,11 +200,7 @@ class _BlocJournalViewState extends State<_BlocJournalView> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Icon(
-                                PhosphorIcons.caretDown(
-                                  PhosphorIconsStyle.bold,
-                                ),
-                              ),
+                            : HappifyEmoji.next(size: 22),
 
                         label: Text(
                           state.loadingMore
@@ -238,9 +236,11 @@ class _JournalEntryCard extends StatelessWidget {
         collapsedShape: const Border(),
         tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
         childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-        leading: mood == null
-            ? HappifyEmoji.journal(size: 36)
-            : happifyMoodEmoji(mood, size: 36),
+        leading: ExcludeSemantics(
+          child: mood == null
+              ? HappifyEmoji.journal(size: 36)
+              : happifyMoodEmoji(mood, size: 36),
+        ),
         title: Text(
           entry['title']?.toString() ?? 'Untitled entry',
           style: Theme.of(context).textTheme.titleMedium,
@@ -251,11 +251,14 @@ class _JournalEntryCard extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Chip(label: Text(prettyEnum(entry['riskLevel']))),
-            Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold)),
+            HappifyEmoji.next(size: 22),
           ],
         ),
         children: [
-          Align(alignment: Alignment.centerLeft, child: Text(content)),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: HappifyRichText(content),
+          ),
           if (mood != null) ...[
             const SizedBox(height: 10),
             Align(

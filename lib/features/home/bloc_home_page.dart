@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
@@ -21,7 +20,7 @@ class BlocHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = AppServices.of(context).auth;
     if (!auth.canUseProtectedFeatures) {
-      return const GuestGuard(
+      return const SignInGuard(
         child: Text('Your personal home dashboard is ready after sign in.'),
       );
     }
@@ -49,8 +48,12 @@ class _BlocHomeView extends StatelessWidget {
             'Friend';
         return HappifyPage(
           refresh: context.read<HomeCubit>().load,
+          bottomPadding: 110,
           children: [
-            _HomeHeader(name: name),
+            _HomeHeader(
+              name: name,
+              avatarUrl: profile['avatarUrl']?.toString(),
+            ),
             const SizedBox(height: 22),
             _QuickMoodCard(onPressed: () => context.go('/app?target=mood')),
             const SizedBox(height: 18),
@@ -92,7 +95,7 @@ class _BlocHomeView extends StatelessWidget {
                   Navigator.pop(sheetContext);
                   context.push('/contacts');
                 },
-                icon: const Icon(Icons.contact_phone),
+                icon: HappifyEmoji.phone(size: 24),
                 label: const Text('Emergency contacts'),
               ),
               const SizedBox(height: 8),
@@ -101,7 +104,7 @@ class _BlocHomeView extends StatelessWidget {
                   Navigator.pop(sheetContext);
                   context.push('/care');
                 },
-                icon: const Icon(Icons.health_and_safety),
+                icon: HappifyEmoji.care(size: 24),
                 label: const Text('Professional care'),
               ),
             ],
@@ -113,9 +116,10 @@ class _BlocHomeView extends StatelessWidget {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.name});
+  const _HomeHeader({required this.name, this.avatarUrl});
 
   final String name;
+  final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +137,7 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        const QuokkaBadge(size: 68),
+        HappifyAvatar(size: 58, imageUrl: avatarUrl, fallbackName: name),
       ],
     );
   }
@@ -147,24 +151,47 @@ class _QuickMoodCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FeatureCard(
-      color: const Color(0xFFF3E3D0),
-      child: Row(
+      color: HappifyColors.greenSurface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'How are you feeling?',
-                  style: Theme.of(context).textTheme.titleLarge,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: HappifyColors.line, width: 2),
                 ),
-                const SizedBox(height: 4),
-                const Text('A quick check-in helps reveal your mood patterns.'),
-              ],
-            ),
+                child: HappifyEmoji.mood(size: 30),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'How are you feeling?',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'A quick check-in helps reveal your mood patterns.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          FilledButton(onPressed: onPressed, child: const Text('Check in')),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: onPressed,
+            icon: HappifyEmoji.next(size: 22),
+            label: const Text('Start check-in'),
+          ),
         ],
       ),
     );
@@ -231,32 +258,39 @@ class _TotalsCard extends StatelessWidget {
     ];
 
     return FeatureCard(
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: values
-            .map(
-              (value) => SizedBox(
-                width: 132,
-                child: Semantics(
-                  label: '${value.$1}: ${value.$2}',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      value.$3,
-
-                      const SizedBox(height: 6),
-                      Text(
-                        '${value.$2}',
-                        style: Theme.of(context).textTheme.titleLarge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tileWidth = ((constraints.maxWidth - 10) / 2).clamp(
+            110.0,
+            132.0,
+          );
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: values
+                .map(
+                  (value) => SizedBox(
+                    width: tileWidth,
+                    child: Semantics(
+                      label: '${value.$1}: ${value.$2}',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ExcludeSemantics(child: value.$3),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${value.$2}',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          Text(value.$1),
+                        ],
                       ),
-                      Text(value.$1),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            )
-            .toList(),
+                )
+                .toList(),
+          );
+        },
       ),
     );
   }
@@ -387,7 +421,7 @@ class _MotivationSection extends StatelessWidget {
       emptyMessage: 'No English motivation has been published for today.',
       onRetry: context.read<HomeCubit>().loadMotivation,
       child: FeatureCard(
-        color: const Color(0xFFF3E3D0),
+        color: HappifyColors.orangeSurface,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -414,26 +448,35 @@ class _SosCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FeatureCard(
-      color: const Color(0xFFFFE8E1),
-      child: Row(
-        children: [
-          Icon(
-            PhosphorIcons.lifebuoy(PhosphorIconsStyle.fill),
-            size: 36,
-            color: HappifyColors.coral,
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Feeling anxious or unsafe?'),
-                Text('Open support options whenever you need them.'),
-              ],
-            ),
-          ),
-          TextButton(onPressed: onPressed, child: const Text('SOS support')),
-        ],
+      color: HappifyColors.redSurface,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 360;
+          final copy = const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Feeling anxious or unsafe?'),
+              Text('Open support options whenever you need them.'),
+            ],
+          );
+          final action = TextButton(
+            onPressed: onPressed,
+            child: const Text('SOS support'),
+          );
+          return compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [copy, const SizedBox(height: 8), action],
+                )
+              : Row(
+                  children: [
+                    HappifyEmoji.escalation(size: 36),
+                    const SizedBox(width: 12),
+                    Expanded(child: copy),
+                    action,
+                  ],
+                );
+        },
       ),
     );
   }
@@ -473,10 +516,7 @@ class _MindfulnessSection extends StatelessWidget {
                       onTap: () => showMindfulnessActivity(context, activity),
                       child: Row(
                         children: [
-                          Icon(
-                            PhosphorIcons.playCircle(PhosphorIconsStyle.fill),
-                            color: HappifyColors.sageDeep,
-                          ),
+                          HappifyEmoji.play(size: 28),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(

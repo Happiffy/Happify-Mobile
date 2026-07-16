@@ -8,6 +8,9 @@ class CompanionRepository {
 
   Future<List<Map<String, dynamic>>> devices() => _repository.devices();
 
+  Future<Map<String, dynamic>> ensureCompanion() =>
+      _repository.ensureCompanion();
+
   Future<Map<String, dynamic>> startPairing(String serial, String secret) =>
       _repository.startPairing(serial, secret);
 

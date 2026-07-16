@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/app_services.dart';
 import '../../core/theme/happify_colors.dart';
 import '../../core/theme/happify_theme.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
+import '../../core/widgets/happify_emoji.dart';
 import '../../core/widgets/quokka_badge.dart';
 
 class AccountOnboardingPage extends StatefulWidget {
@@ -103,7 +103,7 @@ class _AccountOnboardingPageState extends State<AccountOnboardingPage> {
                 IconButton(
                   tooltip: 'Back',
                   onPressed: _step == 0 ? null : () => setState(() => _step--),
-                  icon: Icon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold)),
+                  icon: HappifyEmoji.back(size: 28),
                 ),
                 const Spacer(),
                 Text(
@@ -177,7 +177,7 @@ class _AccountOnboardingPageState extends State<AccountOnboardingPage> {
                                   blurRadius: 0,
                                 ),
                               ]
-                            : HappifyShadows.card,
+                            : const [],
                       ),
                       child: Row(
                         children: [
@@ -187,19 +187,9 @@ class _AccountOnboardingPageState extends State<AccountOnboardingPage> {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                           ),
-                          Icon(
-                            isSelected
-                                ? PhosphorIcons.checkCircle(
-                                    PhosphorIconsStyle.fill,
-                                  )
-                                : PhosphorIcons.circle(
-                                    PhosphorIconsStyle.regular,
-                                  ),
-                            color: isSelected
-                                ? HappifyColors.greenDark
-                                : HappifyColors.inkSoft,
-                            size: 26,
-                          ),
+                          isSelected
+                              ? HappifyEmoji.check(size: 26)
+                              : HappifyEmoji.whiteHeart(size: 26),
                         ],
                       ),
                     ),
@@ -214,9 +204,9 @@ class _AccountOnboardingPageState extends State<AccountOnboardingPage> {
                   : _step == steps.length - 1
                   ? 'Finish setup'
                   : 'Continue',
-              icon: _step == steps.length - 1
-                  ? PhosphorIcons.check(PhosphorIconsStyle.bold)
-                  : PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
+              leading: _step == steps.length - 1
+                  ? HappifyEmoji.check(size: 22)
+                  : HappifyEmoji.next(size: 22),
               onPressed: _saving
                   ? null
                   : () {

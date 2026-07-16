@@ -1,9 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../theme/happify_colors.dart';
-import 'quokka_badge.dart';
+import '../theme/happify_theme.dart';
+import 'happify_emoji.dart';
+
+final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+class _ToastData {
+  const _ToastData({
+    required this.title,
+    required this.message,
+    required this.type,
+  });
+
+  final String title;
+  final String? message;
+  final HappifyToastType type;
+}
+
+class _ToastCard extends StatelessWidget {
+  const _ToastCard({required this.data, required this.onDismiss});
+
+  final _ToastData data;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final isError = data.type == HappifyToastType.error;
+    final color = isError ? HappifyColors.red : HappifyColors.green;
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(HappifyRadii.field),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(HappifyRadii.field),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: color, width: 2),
+            borderRadius: BorderRadius.circular(HappifyRadii.field),
+            boxShadow: HappifyShadows.card,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 11, 6, 10),
+                child: Row(
+                  children: [
+                    isError
+                        ? HappifyEmoji.warning(size: 26)
+                        : HappifyEmoji.check(size: 26),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            data.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (data.message case final message?
+                              when message.trim().isNotEmpty)
+                            Text(
+                              message,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
+                      label: 'Dismiss notification',
+                      child: SizedBox.square(
+                        dimension: 48,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: onDismiss,
+                            child: Center(child: HappifyEmoji.close(size: 18)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ColoredBox(
+                color: color,
+                child: const SizedBox(width: double.infinity, height: 4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class HappifyPage extends StatelessWidget {
   const HappifyPage({
@@ -11,6 +108,7 @@ class HappifyPage extends StatelessWidget {
     this.title,
     this.actions,
     this.refresh,
+    this.bottomPadding = 32,
     super.key,
   });
 
@@ -18,12 +116,13 @@ class HappifyPage extends StatelessWidget {
   final List<Widget> children;
   final List<Widget>? actions;
   final Future<void> Function()? refresh;
+  final double bottomPadding;
 
   @override
   Widget build(BuildContext context) {
     final content = ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 110),
+      padding: EdgeInsets.fromLTRB(20, 22, 20, bottomPadding),
       children: [
         if (title != null)
           Row(
@@ -41,13 +140,16 @@ class HappifyPage extends StatelessWidget {
         ...children,
       ],
     );
-    return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: refresh == null
-              ? content
-              : RefreshIndicator(onRefresh: refresh!, child: content),
+    return ColoredBox(
+      color: Colors.white,
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: refresh == null
+                ? content
+                : RefreshIndicator(onRefresh: refresh!, child: content),
+          ),
         ),
       ),
     );
@@ -70,26 +172,29 @@ class FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final body = Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Theme.of(context).dividerColor, width: 2),
-        boxShadow: const [
-          BoxShadow(color: Color(0xFFD9D9D9), offset: Offset(0, 4)),
-        ],
+    final radius = BorderRadius.circular(HappifyRadii.card);
+    final body = Material(
+      color: color ?? Theme.of(context).colorScheme.surface,
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
+      child: Ink(
+        width: double.infinity,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: color ?? Theme.of(context).colorScheme.surface,
+          borderRadius: radius,
+          boxShadow: HappifyShadows.soft,
+        ),
+        child: child,
       ),
-      child: child,
     );
     if (onTap == null) return body;
     return Semantics(
       button: true,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: body,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: radius,
+        child: InkWell(borderRadius: radius, onTap: onTap, child: body),
       ),
     );
   }
@@ -103,6 +208,7 @@ class AsyncStateView extends StatelessWidget {
     required this.onRetry,
     required this.child,
     this.emptyMessage = 'Nothing here yet.',
+    this.emptyVisual,
     super.key,
   });
 
@@ -112,6 +218,7 @@ class AsyncStateView extends StatelessWidget {
   final VoidCallback onRetry;
   final Widget child;
   final String emptyMessage;
+  final Widget? emptyVisual;
 
   @override
   Widget build(BuildContext context) {
@@ -125,13 +232,12 @@ class AsyncStateView extends StatelessWidget {
       return FeatureCard(
         child: Column(
           children: [
-            Icon(
-              PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
-              color: Theme.of(context).colorScheme.error,
-              size: 34,
-            ),
+            HappifyEmoji.warning(size: 34),
             const SizedBox(height: 10),
-            Text(error!, textAlign: TextAlign.center),
+            const Text(
+              'We could not load this yet. Please try again.',
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 12),
             FilledButton.tonal(onPressed: onRetry, child: const Text('Retry')),
           ],
@@ -142,8 +248,8 @@ class AsyncStateView extends StatelessWidget {
       return FeatureCard(
         child: Column(
           children: [
-            const QuokkaBadge(size: 70, calm: true),
-            const SizedBox(height: 10),
+            emptyVisual ?? HappifyEmoji.records(size: 56),
+            const SizedBox(height: 12),
             Text(emptyMessage, textAlign: TextAlign.center),
           ],
         ),
@@ -153,8 +259,8 @@ class AsyncStateView extends StatelessWidget {
   }
 }
 
-class GuestGuard extends StatelessWidget {
-  const GuestGuard({this.child, super.key});
+class SignInGuard extends StatelessWidget {
+  const SignInGuard({this.child, super.key});
   final Widget? child;
 
   @override
@@ -165,10 +271,10 @@ class GuestGuard extends StatelessWidget {
         FeatureCard(
           child: Column(
             children: [
-              const QuokkaBadge(size: 96, calm: true),
+              HappifyEmoji.profile(size: 70),
               const SizedBox(height: 14),
               Text(
-                'This feature securely stores personal wellbeing data and is unavailable in guest mode.',
+                'Sign in to securely save and access your personal wellbeing data.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
@@ -220,10 +326,71 @@ Future<String?> showTextPrompt(
   return result;
 }
 
-void showMessage(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
+enum HappifyToastType { success, error }
+
+void showToast(
+  BuildContext context, {
+  required String title,
+  String? message,
+  HappifyToastType type = HappifyToastType.success,
+}) {
+  final messenger = scaffoldMessengerKey.currentState;
+  if (messenger == null) return;
+  messenger
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+    ..showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 4),
+        content: _ToastCard(
+          data: _ToastData(title: title, message: message, type: type),
+          onDismiss: messenger.hideCurrentSnackBar,
+        ),
+      ),
+    );
+}
+
+void showMessage(BuildContext context, String message) {
+  final normalized = message.toLowerCase();
+  final isError =
+      normalized.contains('could not') ||
+      normalized.contains('failed') ||
+      normalized.contains('error') ||
+      normalized.contains('unable') ||
+      normalized.contains('cannot') ||
+      normalized.contains('retry') ||
+      normalized.contains('expired') ||
+      normalized.contains('required') ||
+      normalized.contains('invalid') ||
+      normalized.contains('not available');
+  showToast(
+    context,
+    title: isError ? 'Something went wrong' : message,
+    message: isError ? message : null,
+    type: isError ? HappifyToastType.error : HappifyToastType.success,
+  );
+}
+
+void showSuccessToast(BuildContext context, String title, {String? message}) {
+  showToast(
+    context,
+    title: title,
+    message: message,
+    type: HappifyToastType.success,
+  );
+}
+
+void showErrorToast(BuildContext context, String title, {String? message}) {
+  showToast(
+    context,
+    title: title,
+    message: message,
+    type: HappifyToastType.error,
+  );
 }
 
 String prettyEnum(Object? value) {

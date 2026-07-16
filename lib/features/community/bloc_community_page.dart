@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
@@ -8,6 +7,7 @@ import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
 import '../../core/widgets/happify_emoji.dart';
+import '../../core/widgets/happify_rich_text.dart';
 import 'bloc/community_cubit.dart';
 import 'bloc/community_state.dart';
 import 'data/community_repository.dart';
@@ -27,7 +27,7 @@ class BlocCommunityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!AppServices.of(context).auth.canUseProtectedFeatures) {
-      return const GuestGuard(
+      return const SignInGuard(
         child: Text('Community support is available after sign in.'),
       );
     }
@@ -155,7 +155,7 @@ class _BlocCommunityViewState extends State<_BlocCommunityView> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -325,11 +325,7 @@ class _CommunityFeedTab extends StatelessWidget {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Icon(
-                                PhosphorIcons.caretDown(
-                                  PhosphorIconsStyle.bold,
-                                ),
-                              ),
+                            : HappifyEmoji.next(size: 22),
 
                         label: Text(
                           state.loadingMoreFeed
@@ -385,6 +381,7 @@ class _CommunityPostCard extends StatelessWidget {
               ),
               if (mood != null) Chip(label: Text(prettyEnum(mood))),
               PopupMenuButton<String>(
+                tooltip: 'Report post',
                 onSelected: (_) => onReport('POST', postId),
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'report', child: Text('Report')),
@@ -393,7 +390,7 @@ class _CommunityPostCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(post['content']?.toString() ?? ''),
+          HappifyRichText(post['content']?.toString() ?? ''),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -412,7 +409,7 @@ class _CommunityPostCard extends StatelessWidget {
                 onPressed: busy || postId.isEmpty
                     ? null
                     : () => onComment(postId),
-                icon: const Icon(Icons.comment),
+                icon: HappifyEmoji.comment(size: 22),
                 label: const Text('Comment'),
               ),
             ],
@@ -427,7 +424,7 @@ class _CommunityPostCard extends StatelessWidget {
                 onPressed: commentId.isEmpty
                     ? null
                     : () => onReport('COMMENT', commentId),
-                icon: const Icon(Icons.flag_outlined),
+                icon: HappifyEmoji.report(size: 22),
                 tooltip: 'Report comment',
               ),
             );
@@ -460,7 +457,7 @@ class _CommunityHeatmapTab extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
             children: [
               const FeatureCard(
-                color: Color(0xFFE6DCF0),
+                color: HappifyColors.purpleSurface,
                 child: Text(
                   'The backend only releases regions meeting its minimum anonymity cohort. The app sends a coarse grid key, never exact coordinates.',
                 ),
@@ -516,47 +513,69 @@ class _BlocPrivacyHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FeatureCard(
-      color: HappifyColors.ink,
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: items.map((item) {
-          final moods = objectMap(item['moods']);
-          var dominant = 'NEUTRAL';
-          var max = -1;
-          for (final entry in moods.entries) {
-            final count = (entry.value as num? ?? 0).toInt();
-            if (count > max) {
-              dominant = entry.key;
-              max = count;
-            }
-          }
-          return Semantics(
-            label:
-                '${item['regionKey']}, ${item['count']} anonymous contributions, mostly ${prettyEnum(dominant)}',
-            child: Container(
-              width: 102,
-              height: 102,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: moodColor(dominant),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    item['regionKey']?.toString() ?? '',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text('${item['count'] ?? 0} people'),
-                  Text(prettyEnum(dominant)),
-                ],
-              ),
-            ),
+      color: HappifyColors.surfaceMuted,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tileWidth = ((constraints.maxWidth - 20) / 3).clamp(
+            86.0,
+            102.0,
           );
-        }).toList(),
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: items.map((item) {
+              final moods = objectMap(item['moods']);
+              var dominant = 'NEUTRAL';
+              var max = -1;
+              for (final entry in moods.entries) {
+                final count = (entry.value as num? ?? 0).toInt();
+                if (count > max) {
+                  dominant = entry.key;
+                  max = count;
+                }
+              }
+              return Semantics(
+                label:
+                    '${item['regionKey']}, ${item['count']} anonymous contributions, mostly ${prettyEnum(dominant)}',
+                child: SizedBox(
+                  width: tileWidth,
+                  height: tileWidth,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: moodColor(dominant),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            item['regionKey']?.toString() ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          Text(
+                            '${item['count'] ?? 0} people',
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            prettyEnum(dominant),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
       ),
     );
   }

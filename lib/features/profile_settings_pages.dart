@@ -4,10 +4,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../core/app_services.dart';
 import '../core/happify_repository.dart';
 import '../core/widgets/common_widgets.dart';
+import '../core/widgets/happify_emoji.dart';
 import '../core/widgets/quokka_badge.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -144,7 +146,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final services = AppServices.of(context);
     if (!services.auth.canUseProtectedFeatures) {
-      return GuestGuard(
+      return SignInGuard(
         child: FilledButton(
           onPressed: () => context.go('/welcome'),
           child: const Text('Return to Welcome'),
@@ -172,7 +174,11 @@ class _ProfilePageState extends State<ProfilePage> {
           },
           child: Column(
             children: [
-              const QuokkaBadge(size: 104),
+              HappifyAvatar(
+                size: 104,
+                imageUrl: _profile['avatarUrl']?.toString(),
+                fallbackName: _profile['displayName']?.toString(),
+              ),
               const SizedBox(height: 12),
               Text(
                 _profile['displayName']?.toString() ?? 'Happify member',
@@ -319,7 +325,6 @@ class _WellbeingPreferencesDialogState
   late final TextEditingController _triggers;
   late final TextEditingController _tone;
   late final TextEditingController _riskAction;
-  late bool _ai;
   bool _saving = false;
 
   @override
@@ -339,7 +344,6 @@ class _WellbeingPreferencesDialogState
       text:
           preference['highRiskAction']?.toString() ?? 'Show emergency support',
     );
-    _ai = preference['consentToAi'] == true;
   }
 
   Future<void> _save() async {
@@ -369,7 +373,7 @@ class _WellbeingPreferencesDialogState
           'reducedMotion': services.settings.reducedMotion,
           'screenReaderOptimized': services.settings.screenReaderOptimized,
         },
-        'consentToAi': _ai,
+        'consentToAi': current['consentToAi'] == true,
       });
       if (mounted) Navigator.pop(context);
     } catch (error) {
@@ -418,14 +422,6 @@ class _WellbeingPreferencesDialogState
               decoration: const InputDecoration(
                 labelText: 'Preferred high-risk action',
               ),
-            ),
-            SwitchListTile(
-              title: const Text('AI preference'),
-              subtitle: const Text(
-                'This preference does not replace the separate AI consent document.',
-              ),
-              value: _ai,
-              onChanged: (value) => setState(() => _ai = value),
             ),
           ],
         ),
@@ -748,29 +744,51 @@ class _EmergencyContactsPageState extends State<EmergencyContactsPage> {
                     subtitle: Text(
                       '${contact['relationship']} · ${contact['phone']}${contact['isPrimary'] == true ? ' · Primary' : ''}',
                     ),
-                    leading: const Icon(Icons.person),
-                    trailing: Wrap(
-                      children: [
-                        IconButton(
-                          onPressed: () => _dial(contact['phone'].toString()),
-                          icon: const Icon(Icons.call),
-                          tooltip: 'Open dialer',
-                        ),
-                        IconButton(
-                          onPressed: () => _edit(contact),
-                          icon: const Icon(Icons.edit),
-                          tooltip: 'Edit',
-                        ),
-                        IconButton(
-                          onPressed: () async {
+                    leading: HappifyEmoji.profile(size: 34),
+                    trailing: PopupMenuButton<String>(
+                      tooltip: 'Contact actions',
+                      onSelected: (action) async {
+                        switch (action) {
+                          case 'call':
+                            _dial(contact['phone'].toString());
+                          case 'edit':
+                            _edit(contact);
+                          case 'delete':
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Delete contact?'),
+                                content: Text(
+                                  '${contact['name']} will no longer appear in your emergency contacts.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed != true || !context.mounted) break;
                             await HappifyRepository(
                               AppServices.of(context).auth.api,
                             ).deleteEmergencyContact(contact['id'].toString());
                             await _load();
-                          },
-                          icon: const Icon(Icons.delete),
-                          tooltip: 'Delete',
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: 'call',
+                          child: Text('Open dialer'),
                         ),
+                        PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(value: 'delete', child: Text('Delete')),
                       ],
                     ),
                   ),
@@ -792,7 +810,9 @@ class _EmergencyContactsPageState extends State<EmergencyContactsPage> {
                         : IconButton(
                             onPressed: () =>
                                 _dial(provider['phone'].toString()),
-                            icon: const Icon(Icons.call),
+                            icon: Icon(
+                              PhosphorIcons.phoneCall(PhosphorIconsStyle.bold),
+                            ),
                             tooltip: 'Open dialer',
                           ),
                   ),

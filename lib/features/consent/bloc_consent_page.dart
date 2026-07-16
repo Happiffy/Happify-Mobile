@@ -5,14 +5,64 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
+import '../../core/theme/happify_colors.dart';
+import '../../core/theme/happify_theme.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
-import '../../core/widgets/quokka_badge.dart';
+import '../../core/widgets/happify_emoji.dart';
+import '../../core/widgets/happify_rich_text.dart';
 import 'bloc/consent_cubit.dart';
 import 'bloc/consent_state.dart';
 import 'data/consent_repository.dart';
 
 typedef ConsentRouteCallback = FutureOr<void> Function();
+
+class _ConsentVisual {
+  const _ConsentVisual({
+    required this.emoji,
+    required this.surface,
+    required this.color,
+    required this.summary,
+  });
+
+  final Widget Function({double size}) emoji;
+  final Color surface;
+  final Color color;
+  final String summary;
+}
+
+_ConsentVisual _consentVisual(String scope) => switch (scope) {
+  'AI_PROCESSING' => _ConsentVisual(
+    emoji: HappifyEmoji.brain,
+    surface: HappifyColors.purpleSurface,
+    color: HappifyColors.purpleDark,
+    summary: 'AI-assisted reflections, not diagnosis.',
+  ),
+  'VOICE_PROCESSING' => _ConsentVisual(
+    emoji: HappifyEmoji.microphone,
+    surface: HappifyColors.blueSurface,
+    color: HappifyColors.blueDark,
+    summary: 'Transcription and protected voice responses.',
+  ),
+  'DEVICE_EMOTION_OBSERVATION' => _ConsentVisual(
+    emoji: HappifyEmoji.companion,
+    surface: HappifyColors.goldSurface,
+    color: HappifyColors.goldDark,
+    summary: 'Emotion signals from a paired Companion device.',
+  ),
+  'HEATMAP_CONTRIBUTION' => _ConsentVisual(
+    emoji: HappifyEmoji.heatmap,
+    surface: HappifyColors.orangeSurface,
+    color: HappifyColors.orangeDark,
+    summary: 'One anonymous coarse-region mood contribution per day.',
+  ),
+  _ => _ConsentVisual(
+    emoji: HappifyEmoji.shield,
+    surface: HappifyColors.greenSurface,
+    color: HappifyColors.greenDark,
+    summary: 'An optional Happify privacy control.',
+  ),
+};
 
 class BlocConsentPage extends StatelessWidget {
   const BlocConsentPage({
@@ -90,12 +140,7 @@ class _BlocConsentViewState extends State<BlocConsentView> {
             title: 'Your data stays yours.',
             refresh: context.read<ConsentCubit>().load,
             children: [
-              const Center(child: QuokkaBadge(size: 100, calm: true)),
-              const SizedBox(height: 16),
-              Text(
-                'Choose which optional Happify features may process your data. You can change these choices later.',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
+              _PrivacyHero(documentCount: state.documents.length),
               const SizedBox(height: 20),
               if (state.loadStatus == ConsentLoadStatus.loading &&
                   state.documents.isEmpty)
@@ -105,15 +150,15 @@ class _BlocConsentViewState extends State<BlocConsentView> {
                 ),
               if (state.loadError != null)
                 _ConsentMessageCard(
-                  icon: Icons.warning_amber_rounded,
+                  icon: HappifyEmoji.warning(size: 34),
                   message: state.loadError!,
                   actionLabel: 'Retry loading',
                   onAction: busy ? null : context.read<ConsentCubit>().load,
                 ),
               if (state.loadStatus == ConsentLoadStatus.success &&
                   state.documents.isEmpty)
-                const _ConsentMessageCard(
-                  icon: Icons.privacy_tip_outlined,
+                _ConsentMessageCard(
+                  icon: HappifyEmoji.shield(size: 34),
                   message:
                       'No active consent documents are available. You can still continue and review this page later.',
                 ),
@@ -121,27 +166,14 @@ class _BlocConsentViewState extends State<BlocConsentView> {
                 ...state.documents.map(
                   (document) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: FeatureCard(
-                      child: SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          document.title.isEmpty
-                              ? prettyEnum(document.scope)
-                              : document.title,
-                        ),
-                        subtitle: Text(
-                          '${document.content}\nVersion ${document.version}',
-                        ),
-                        value:
-                            state.selections[document.scope] ??
-                            document.accepted,
-                        onChanged: busy
-                            ? null
-                            : (value) => context.read<ConsentCubit>().setChoice(
-                                document.scope,
-                                value,
-                              ),
-                      ),
+                    child: _ConsentCard(
+                      document: document,
+                      value:
+                          state.selections[document.scope] ?? document.accepted,
+                      enabled: !busy,
+                      onChanged: (value) => context
+                          .read<ConsentCubit>()
+                          .setChoice(document.scope, value),
                     ),
                   ),
                 ),
@@ -160,7 +192,7 @@ class _BlocConsentViewState extends State<BlocConsentView> {
               if (state.saveStatus == ConsentSaveStatus.success) ...[
                 const SizedBox(height: 8),
                 _ConsentMessageCard(
-                  icon: Icons.check_circle_outline,
+                  icon: HappifyEmoji.check(size: 34),
                   message:
                       'All ${state.completedCount} consent choices were saved.',
                 ),
@@ -174,7 +206,7 @@ class _BlocConsentViewState extends State<BlocConsentView> {
                     : state.documents.isEmpty
                     ? 'Continue to Happify'
                     : 'Save and continue',
-                icon: Icons.check,
+                leading: HappifyEmoji.check(size: 22),
                 onPressed: busy
                     ? null
                     : state.documents.isEmpty
@@ -191,12 +223,153 @@ class _BlocConsentViewState extends State<BlocConsentView> {
               ),
               TextButton.icon(
                 onPressed: busy ? null : () => _runRoute(widget.onSignOut),
-                icon: const Icon(Icons.logout),
+                icon: HappifyEmoji.signOut(size: 22),
                 label: const Text('Sign out'),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _PrivacyHero extends StatelessWidget {
+  const _PrivacyHero({required this.documentCount});
+
+  final int documentCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: HappifyColors.greenSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: HappifyColors.green, width: 2),
+        boxShadow: HappifyShadows.card,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: HappifyEmoji.shield(size: 38),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Privacy controls',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: HappifyColors.greenDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose what you want to share.',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '$documentCount optional controls. You can change these choices later.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsentCard extends StatelessWidget {
+  const _ConsentCard({
+    required this.document,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final ConsentDocument document;
+  final bool value;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final visual = _consentVisual(document.scope);
+    return FeatureCard(
+      color: visual.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: HappifyColors.line, width: 2),
+                ),
+                child: visual.emoji(size: 30),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      document.title.isEmpty
+                          ? prettyEnum(document.scope)
+                          : document.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      visual.summary,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              Switch(value: value, onChanged: enabled ? onChanged : null),
+            ],
+          ),
+          const SizedBox(height: 12),
+          HappifyRichText(document.content),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              value
+                  ? HappifyEmoji.check(size: 18)
+                  : HappifyEmoji.whiteHeart(size: 18),
+              const SizedBox(width: 6),
+              Text(
+                value ? 'On' : 'Off',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: value ? visual.color : HappifyColors.inkMuted,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Version ${document.version}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -291,7 +464,7 @@ class _ConsentMessageCard extends StatelessWidget {
     this.onAction,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -303,7 +476,7 @@ class _ConsentMessageCard extends StatelessWidget {
       child: FeatureCard(
         child: Column(
           children: [
-            Icon(icon, size: 34),
+            icon,
             const SizedBox(height: 10),
             Text(message, textAlign: TextAlign.center),
             if (actionLabel != null) ...[
