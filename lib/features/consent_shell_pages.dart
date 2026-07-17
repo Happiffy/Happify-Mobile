@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -257,43 +256,10 @@ class _HappifyShellState extends State<HappifyShell>
   }
 
   Future<void> _requestNotifications() async {
-    final push = PushService(AppServices.of(context).auth, (_, _) {});
-    try {
-      final status = await push.requestPermission();
-      if (!mounted) return;
-      showMessage(
-        context,
-        status == AuthorizationStatus.authorized ||
-                status == AuthorizationStatus.provisional
-            ? 'Notifications are enabled.'
-            : 'Notifications were not enabled. You can enable them in system settings.',
-      );
-    } finally {
-      push.dispose();
-    }
+    await context.push('/notifications');
   }
 
   Future<void> _signOut() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text(
-          'You will be signed out on this device. You can sign in again anytime.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
     final services = AppServices.of(context);
     final push = PushService(services.auth, (_, _) {});
     try {

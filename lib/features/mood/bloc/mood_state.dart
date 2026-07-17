@@ -14,6 +14,11 @@ class MoodState extends Equatable {
     this.note = '',
     this.history = const [],
     this.dashboard = const {},
+    this.historyPage = 1,
+    this.hasMoreHistory = false,
+    this.loadingMoreHistory = false,
+    this.historyStartDate,
+    this.historyEndDate,
     this.historyError,
     this.dashboardError,
     this.saveError,
@@ -27,6 +32,11 @@ class MoodState extends Equatable {
   final String note;
   final List<Map<String, dynamic>> history;
   final Map<String, dynamic> dashboard;
+  final int historyPage;
+  final bool hasMoreHistory;
+  final bool loadingMoreHistory;
+  final DateTime? historyStartDate;
+  final DateTime? historyEndDate;
   final String? historyError;
   final String? dashboardError;
   final String? saveError;
@@ -42,6 +52,12 @@ class MoodState extends Equatable {
     String? note,
     List<Map<String, dynamic>>? history,
     Map<String, dynamic>? dashboard,
+    int? historyPage,
+    bool? hasMoreHistory,
+    bool? loadingMoreHistory,
+    DateTime? historyStartDate,
+    DateTime? historyEndDate,
+    bool clearHistoryDates = false,
     String? historyError,
     String? dashboardError,
     String? saveError,
@@ -58,6 +74,15 @@ class MoodState extends Equatable {
       note: note ?? this.note,
       history: history ?? this.history,
       dashboard: dashboard ?? this.dashboard,
+      historyPage: historyPage ?? this.historyPage,
+      hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
+      loadingMoreHistory: loadingMoreHistory ?? this.loadingMoreHistory,
+      historyStartDate: clearHistoryDates
+          ? null
+          : historyStartDate ?? this.historyStartDate,
+      historyEndDate: clearHistoryDates
+          ? null
+          : historyEndDate ?? this.historyEndDate,
       historyError: clearHistoryError
           ? null
           : historyError ?? this.historyError,
@@ -78,6 +103,11 @@ class MoodState extends Equatable {
     note,
     history,
     dashboard,
+    historyPage,
+    hasMoreHistory,
+    loadingMoreHistory,
+    historyStartDate,
+    historyEndDate,
     historyError,
     dashboardError,
     saveError,

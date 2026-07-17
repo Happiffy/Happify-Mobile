@@ -42,8 +42,8 @@ class CareRepository {
 
   Future<Map<String, dynamic>> chat(String id) => _repository.chat(id);
 
-  Future<void> sendChat(String id, String content) =>
-      _repository.sendChat(id, content);
+  Future<void> sendChat(String id, String content, {String? imageUrl}) =>
+      _repository.sendChat(id, content, imageUrl: imageUrl);
 
   Future<void> updateChatStatus(String id, String status) =>
       _repository.updateChatStatus(id, status);

@@ -15,8 +15,15 @@ class JournalRepository {
   Future<JournalPageResult> loadEntries({
     required int page,
     required int limit,
+    String? startDate,
+    String? endDate,
   }) async {
-    final items = await _repository.journals(page: page, limit: limit);
+    final items = await _repository.journals(
+      page: page,
+      limit: limit,
+      startDate: startDate,
+      endDate: endDate,
+    );
     return JournalPageResult(items: items, hasMore: items.length == limit);
   }
 

@@ -5,7 +5,7 @@ import '../data/journal_repository.dart';
 import 'journal_state.dart';
 
 class JournalCubit extends Cubit<JournalState> {
-  JournalCubit({required this.repository, this.pageSize = 10})
+  JournalCubit({required this.repository, this.pageSize = 5})
     : super(const JournalState());
 
   final JournalRepository repository;
@@ -18,19 +18,46 @@ class JournalCubit extends Cubit<JournalState> {
 
   Future<void> refresh() => _loadFirstPage();
 
-  Future<void> _loadFirstPage() async {
+  Future<void> applyDateFilter({
+    required DateTime? startDate,
+    required DateTime? endDate,
+  }) => _loadFirstPage(
+    startDate: startDate,
+    endDate: endDate,
+    clearDates: startDate == null && endDate == null,
+  );
+
+  Future<void> _loadFirstPage({
+    DateTime? startDate,
+    DateTime? endDate,
+    bool clearDates = false,
+  }) async {
     if (_loading) return;
     _loading = true;
+    final filterStartDate = clearDates ? null : startDate ?? state.startDate;
+    final filterEndDate = clearDates ? null : endDate ?? state.endDate;
     emit(
       state.copyWith(
         status: JournalStatus.loading,
+        entries: const [],
+        page: 1,
+        hasMore: false,
+        loadingMore: false,
+        startDate: filterStartDate,
+        endDate: filterEndDate,
+        clearDates: clearDates,
         clearError: true,
         clearActionError: true,
         clearLastCreatedRisk: true,
       ),
     );
     try {
-      final result = await repository.loadEntries(page: 1, limit: pageSize);
+      final result = await repository.loadEntries(
+        page: 1,
+        limit: pageSize,
+        startDate: _apiDate(filterStartDate),
+        endDate: _apiDate(filterEndDate),
+      );
       emit(
         state.copyWith(
           status: result.items.isEmpty
@@ -39,6 +66,9 @@ class JournalCubit extends Cubit<JournalState> {
           entries: List.unmodifiable(result.items),
           page: 1,
           hasMore: result.hasMore,
+          startDate: filterStartDate,
+          endDate: filterEndDate,
+          clearDates: clearDates,
           clearError: true,
         ),
       );
@@ -78,7 +108,12 @@ class JournalCubit extends Cubit<JournalState> {
         content: cleanContent,
         detectedMood: detectedMood,
       );
-      final result = await repository.loadEntries(page: 1, limit: pageSize);
+      final result = await repository.loadEntries(
+        page: 1,
+        limit: pageSize,
+        startDate: _apiDate(state.startDate),
+        endDate: _apiDate(state.endDate),
+      );
       emit(
         state.copyWith(
           status: result.items.isEmpty
@@ -111,6 +146,8 @@ class JournalCubit extends Cubit<JournalState> {
       final result = await repository.loadEntries(
         page: nextPage,
         limit: pageSize,
+        startDate: _apiDate(state.startDate),
+        endDate: _apiDate(state.endDate),
       );
       emit(
         state.copyWith(
@@ -148,5 +185,11 @@ class JournalCubit extends Cubit<JournalState> {
       if (id == null || id.isEmpty || ids.add(id)) result.add(item);
     }
     return result;
+  }
+
+  String? _apiDate(DateTime? value) {
+    if (value == null) return null;
+    final date = value.toLocal();
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }

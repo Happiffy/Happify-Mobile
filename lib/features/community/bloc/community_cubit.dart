@@ -5,7 +5,7 @@ import '../data/community_repository.dart';
 import 'community_state.dart';
 
 class CommunityCubit extends Cubit<CommunityState> {
-  CommunityCubit({required this.repository, this.pageSize = 10})
+  CommunityCubit({required this.repository, this.pageSize = 5})
     : super(const CommunityState());
 
   final CommunityRepository repository;

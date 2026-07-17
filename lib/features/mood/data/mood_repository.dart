@@ -6,8 +6,16 @@ class MoodRepository {
 
   final HappifyRepository _repository;
 
-  Future<List<Map<String, dynamic>>> moods({int limit = 30}) async {
-    final moods = await _repository.moods(limit: limit);
+  Future<List<Map<String, dynamic>>> moods({
+    int limit = 30,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final moods = await _repository.moods(
+      limit: limit,
+      startDate: startDate,
+      endDate: endDate,
+    );
     return _immutableList(moods);
   }
 

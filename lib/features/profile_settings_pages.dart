@@ -8,6 +8,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../core/app_services.dart';
 import '../core/happify_repository.dart';
+import '../core/theme/happify_colors.dart';
 import '../core/widgets/common_widgets.dart';
 import '../core/widgets/happify_emoji.dart';
 import '../core/widgets/quokka_badge.dart';
@@ -612,83 +613,67 @@ class _EmergencyContactsPageState extends State<EmergencyContactsPage> {
   }
 
   Future<void> _edit([Map<String, dynamic>? existing]) async {
-    final name = TextEditingController(
-      text: existing?['name']?.toString() ?? '',
+    final saved = await context.push<bool>(
+      existing == null ? '/contacts/new' : '/contacts/edit',
+      extra: existing,
     );
-    final relationship = TextEditingController(
-      text: existing?['relationship']?.toString() ?? '',
-    );
-    final phone = TextEditingController(
-      text: existing?['phone']?.toString() ?? '',
-    );
-    var primary = existing?['isPrimary'] == true;
-    final save = await showDialog<bool>(
+    if (saved == true && mounted) await _load();
+    return;
+  }
+
+  Future<void> _showContactActions(Map<String, dynamic> contact) async {
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            existing == null
-                ? 'Add emergency contact'
-                : 'Edit emergency contact',
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Name'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(PhosphorIcons.phoneCall(PhosphorIconsStyle.bold)),
+                title: const Text('Open dialer'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _dial(contact['phone'].toString());
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold),
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: relationship,
-                  decoration: const InputDecoration(labelText: 'Relationship'),
+                title: const Text('Edit contact'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _edit(contact);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  PhosphorIcons.trash(PhosphorIconsStyle.bold),
+                  color: HappifyColors.red,
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: phone,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                ),
-                SwitchListTile(
-                  title: const Text('Primary contact'),
-                  value: primary,
-                  onChanged: (value) => setDialogState(() => primary = value),
-                ),
-              ],
-            ),
+                title: const Text('Delete contact'),
+                textColor: HappifyColors.red,
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await HappifyRepository(
+                    AppServices.of(context).auth.api,
+                  ).deleteEmergencyContact(contact['id'].toString());
+                  if (mounted) await _load();
+                },
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save'),
-            ),
-          ],
         ),
       ),
     );
-    if (save == true && mounted) {
-      try {
-        await HappifyRepository(
-          AppServices.of(context).auth.api,
-        ).saveEmergencyContact(
-          id: existing?['id']?.toString(),
-          name: name.text.trim(),
-          relationship: relationship.text.trim(),
-          phone: phone.text.trim(),
-          isPrimary: primary,
-        );
-        await _load();
-      } catch (error) {
-        if (mounted) showMessage(context, failureMessage(error));
-      }
-    }
-    name.dispose();
-    relationship.dispose();
-    phone.dispose();
   }
 
   Future<void> _dial(String phone) async {
@@ -745,51 +730,12 @@ class _EmergencyContactsPageState extends State<EmergencyContactsPage> {
                       '${contact['relationship']} · ${contact['phone']}${contact['isPrimary'] == true ? ' · Primary' : ''}',
                     ),
                     leading: HappifyEmoji.profile(size: 34),
-                    trailing: PopupMenuButton<String>(
+                    trailing: IconButton(
                       tooltip: 'Contact actions',
-                      onSelected: (action) async {
-                        switch (action) {
-                          case 'call':
-                            _dial(contact['phone'].toString());
-                          case 'edit':
-                            _edit(contact);
-                          case 'delete':
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Delete contact?'),
-                                content: Text(
-                                  '${contact['name']} will no longer appear in your emergency contacts.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  FilledButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirmed != true || !context.mounted) break;
-                            await HappifyRepository(
-                              AppServices.of(context).auth.api,
-                            ).deleteEmergencyContact(contact['id'].toString());
-                            await _load();
-                        }
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: 'call',
-                          child: Text('Open dialer'),
-                        ),
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(value: 'delete', child: Text('Delete')),
-                      ],
+                      icon: Icon(
+                        PhosphorIcons.dotsThreeOutline(PhosphorIconsStyle.bold),
+                      ),
+                      onPressed: () => _showContactActions(contact),
                     ),
                   ),
                 ),

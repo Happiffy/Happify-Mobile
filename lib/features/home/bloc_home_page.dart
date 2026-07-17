@@ -8,7 +8,6 @@ import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_emoji.dart';
 import '../../core/widgets/quokka_badge.dart';
-import '../mood_mindfulness_pages.dart' show showMindfulnessActivity;
 import 'bloc/home_cubit.dart';
 import 'bloc/home_state.dart';
 import 'data/home_repository.dart';
@@ -58,59 +57,9 @@ class _BlocHomeView extends StatelessWidget {
             _QuickMoodCard(onPressed: () => context.go('/app?target=mood')),
             const SizedBox(height: 18),
             _DashboardSection(state: state),
-            const SizedBox(height: 18),
-            _MotivationSection(state: state),
-            const SizedBox(height: 18),
-            _SosCard(onPressed: () => _showSosSupport(context)),
-            const SizedBox(height: 22),
-            _MindfulnessSection(state: state),
           ],
         );
       },
-    );
-  }
-
-  Future<void> _showSosSupport(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Support is here',
-                style: Theme.of(sheetContext).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'If you are in immediate danger, contact local emergency services. You can also open your saved emergency contacts or request professional care.',
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(sheetContext);
-                  context.push('/contacts');
-                },
-                icon: HappifyEmoji.phone(size: 24),
-                label: const Text('Emergency contacts'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(sheetContext);
-                  context.push('/care');
-                },
-                icon: HappifyEmoji.care(size: 24),
-                label: const Text('Professional care'),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -137,7 +86,19 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        HappifyAvatar(size: 58, imageUrl: avatarUrl, fallbackName: name),
+        Semantics(
+          button: true,
+          label: 'Open profile',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(29),
+            onTap: () => context.go('/app?target=profile'),
+            child: HappifyAvatar(
+              size: 58,
+              imageUrl: avatarUrl,
+              fallbackName: name,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -206,10 +167,12 @@ class _DashboardSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dashboard = state.dashboard;
+    if (state.dashboardStatus == HomeSectionStatus.loading &&
+        dashboard.isEmpty) {
+      return const _DashboardSkeleton();
+    }
     return AsyncStateView(
-      loading:
-          state.dashboardStatus == HomeSectionStatus.loading &&
-          dashboard.isEmpty,
+      loading: false,
       error: state.dashboardStatus == HomeSectionStatus.failure
           ? state.dashboardError
           : null,
@@ -222,18 +185,63 @@ class _DashboardSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Your wellbeing', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 10),
-          _TotalsCard(dashboard: dashboard),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
+          const Text('A clear view of your recent check-ins and progress.'),
+          const SizedBox(height: 12),
           _LatestMoodCard(dashboard: dashboard),
+          const SizedBox(height: 12),
+          _TotalsCard(dashboard: dashboard),
           if (objectList(dashboard['moodTrend']).isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _MoodTrendCard(trend: objectList(dashboard['moodTrend'])),
           ],
         ],
       ),
     );
   }
+}
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _SkeletonBox(width: 150, height: 24),
+      const SizedBox(height: 8),
+      const _SkeletonBox(width: 250, height: 16),
+      const SizedBox(height: 12),
+      const _SkeletonBox(width: double.infinity, height: 94),
+      const SizedBox(height: 12),
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.7,
+        children: const [_SkeletonBox(), _SkeletonBox(), _SkeletonBox()],
+      ),
+      const SizedBox(height: 12),
+      const _SkeletonBox(width: double.infinity, height: 170),
+    ],
+  );
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({this.width, this.height});
+  final double? width;
+  final double? height;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: HappifyColors.surfaceMuted,
+      borderRadius: BorderRadius.circular(18),
+    ),
+  );
 }
 
 class _TotalsCard extends StatelessWidget {
@@ -244,7 +252,6 @@ class _TotalsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totals = objectMap(dashboard['totals']);
-    final streak = _streakValue(dashboard);
     final values = <(String, Object?, Widget)>[
       ('Moods', totals['moods'] ?? 0, HappifyEmoji.greenHeart(size: 30)),
       ('Journals', totals['journals'] ?? 0, HappifyEmoji.journal(size: 30)),
@@ -253,56 +260,49 @@ class _TotalsCard extends StatelessWidget {
         totals['communityPosts'] ?? 0,
         HappifyEmoji.community(size: 30),
       ),
-      if (streak != null)
-        ('Streak', '$streak days', HappifyEmoji.sparkle(size: 30)),
     ];
 
-    return FeatureCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final tileWidth = ((constraints.maxWidth - 10) / 2).clamp(
-            110.0,
-            132.0,
-          );
-          return Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: values
-                .map(
-                  (value) => SizedBox(
-                    width: tileWidth,
-                    child: Semantics(
-                      label: '${value.$1}: ${value.$2}',
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.7,
+      children: values
+          .map(
+            (value) => Semantics(
+              label: '${value.$1}: ${value.$2}',
+              child: FeatureCard(
+                color: HappifyColors.surfaceMuted,
+                child: Row(
+                  children: [
+                    ExcludeSemantics(child: value.$3),
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ExcludeSemantics(child: value.$3),
-                          const SizedBox(height: 6),
                           Text(
                             '${value.$2}',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
-                          Text(value.$1),
+                          Text(
+                            value.$1,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                )
-                .toList(),
-          );
-        },
-      ),
+                  ],
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
-  }
-
-  int? _streakValue(Map<String, dynamic> dashboard) {
-    final direct = dashboard['currentStreak'] ?? dashboard['moodStreak'];
-    if (direct is num) return direct.toInt();
-    final streak = dashboard['streak'];
-    if (streak is num) return streak.toInt();
-    final values = objectMap(streak);
-    final nested = values['current'] ?? values['days'] ?? values['count'];
-    return nested is num ? nested.toInt() : null;
   }
 }
 
@@ -359,11 +359,38 @@ class _MoodTrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final latest = (trend.first['intensity'] as num? ?? 0).toDouble();
+    final oldest = (trend.last['intensity'] as num? ?? 0).toDouble();
+    final percent = oldest == 0
+        ? 0
+        : (((latest - oldest) / oldest) * 100).round();
+    final trendLabel = percent == 0
+        ? 'Steady'
+        : percent > 0
+        ? '+$percent% from your first check-in'
+        : '$percent% from your first check-in';
     return FeatureCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Mood trend', style: Theme.of(context).textTheme.titleMedium),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Mood trend',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Text(
+                trendLabel,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: percent > 0
+                      ? HappifyColors.greenDark
+                      : HappifyColors.inkSoft,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 120,
@@ -378,13 +405,18 @@ class _MoodTrendCard extends StatelessWidget {
                         '${prettyEnum(mood)}, intensity ${intensity.toInt()}, ${shortDate(entry['createdAt'])}',
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          height: 16 + intensity * 18,
-                          decoration: BoxDecoration(
-                            color: moodColor(mood),
-                            borderRadius: BorderRadius.circular(10),
+                      child: Tooltip(
+                        message:
+                            '${prettyEnum(mood)}\nIntensity ${intensity.toInt()}/5\n${shortDate(entry['createdAt'])}',
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            height: 16 + intensity * 18,
+                            decoration: BoxDecoration(
+                              color: moodColor(mood),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -396,154 +428,6 @@ class _MoodTrendCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MotivationSection extends StatelessWidget {
-  const _MotivationSection({required this.state});
-
-  final HomeState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final message = state.motivation?['message']?.toString();
-    return AsyncStateView(
-      loading:
-          state.motivationStatus == HomeSectionStatus.loading &&
-          state.motivation == null,
-      error: state.motivationStatus == HomeSectionStatus.failure
-          ? state.motivationError
-          : null,
-      isEmpty:
-          state.motivationStatus == HomeSectionStatus.success &&
-          message == null,
-      emptyMessage: 'No English motivation has been published for today.',
-      onRetry: context.read<HomeCubit>().loadMotivation,
-      child: FeatureCard(
-        color: HappifyColors.orangeSurface,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Today’s motivation',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 10),
-            Text(message ?? '', style: Theme.of(context).textTheme.titleLarge),
-            if (state.motivation?['author'] != null)
-              Text('— ${state.motivation!['author']}'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SosCard extends StatelessWidget {
-  const _SosCard({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return FeatureCard(
-      color: HappifyColors.redSurface,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 360;
-          final copy = const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Feeling anxious or unsafe?'),
-              Text('Open support options whenever you need them.'),
-            ],
-          );
-          final action = TextButton(
-            onPressed: onPressed,
-            child: const Text('SOS support'),
-          );
-          return compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [copy, const SizedBox(height: 8), action],
-                )
-              : Row(
-                  children: [
-                    HappifyEmoji.escalation(size: 36),
-                    const SizedBox(width: 12),
-                    Expanded(child: copy),
-                    action,
-                  ],
-                );
-        },
-      ),
-    );
-  }
-}
-
-class _MindfulnessSection extends StatelessWidget {
-  const _MindfulnessSection({required this.state});
-
-  final HomeState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Mindfulness', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 10),
-        AsyncStateView(
-          loading:
-              state.mindfulnessStatus == HomeSectionStatus.loading &&
-              state.activities.isEmpty,
-          error: state.mindfulnessStatus == HomeSectionStatus.failure
-              ? state.mindfulnessError
-              : null,
-          isEmpty:
-              state.mindfulnessStatus == HomeSectionStatus.success &&
-              state.activities.isEmpty,
-          emptyMessage: 'No English mindfulness activities are published.',
-          onRetry: context.read<HomeCubit>().loadMindfulness,
-          child: Column(
-            children: state.activities
-                .take(3)
-                .map(
-                  (activity) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: FeatureCard(
-                      onTap: () => showMindfulnessActivity(context, activity),
-                      child: Row(
-                        children: [
-                          HappifyEmoji.play(size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  activity['title']?.toString() ??
-                                      'Mindfulness activity',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                Text(
-                                  '${prettyEnum(activity['type'])} · ${(activity['durationSeconds'] as num? ?? 0).toInt()} seconds',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-      ],
     );
   }
 }

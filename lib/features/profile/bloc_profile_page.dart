@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
@@ -95,6 +97,76 @@ class _BlocProfileViewState extends State<BlocProfileView> {
     }
   }
 
+  Future<void> _confirmSignOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33000000),
+                offset: Offset(0, 8),
+                blurRadius: 0,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                PhosphorIcons.signOut(PhosphorIconsStyle.bold),
+                color: Theme.of(dialogContext).colorScheme.error,
+                size: 32,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Sign out?',
+                style: Theme.of(dialogContext).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'You will need to sign in again to access your private wellbeing data.',
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Theme.of(
+                          dialogContext,
+                        ).colorScheme.error,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: const Text('Sign out'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _runAction(widget.onSignOut);
+    }
+  }
+
   Future<void> _navigate(BlocProfileDestination destination) async {
     final preference = context.read<ProfileCubit>().state.preference;
     await _runAction(() => widget.onNavigate(destination, preference));
@@ -104,30 +176,20 @@ class _BlocProfileViewState extends State<BlocProfileView> {
   }
 
   Future<void> _editProfile(ProfileData profile) async {
-    final cubit = context.read<ProfileCubit>();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: _EditProfileDialog(profile: profile),
-      ),
-    );
+    final saved = await context.push<bool>('/profile/edit');
     if (saved == true && mounted) {
-      showMessage(context, 'Profile updated.');
+      await context.read<ProfileCubit>().loadProfile();
+      if (mounted) showMessage(context, 'Profile updated.');
     }
   }
 
   Future<void> _applyPsychologist(ProfileData profile) async {
-    final cubit = context.read<ProfileCubit>();
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: _PsychologistApplicationDialog(profile: profile),
-      ),
-    );
+    final submitted = await context.push<bool>('/profile/psychologist');
     if (submitted == true && mounted) {
-      showMessage(context, 'Psychologist application submitted for review.');
+      await context.read<ProfileCubit>().loadProfile();
+      if (mounted) {
+        showMessage(context, 'Psychologist application submitted for review.');
+      }
     }
   }
 
@@ -139,16 +201,7 @@ class _BlocProfileViewState extends State<BlocProfileView> {
           title: 'Profile',
           refresh: context.read<ProfileCubit>().load,
           bottomPadding: 110,
-          actions: [
-            IconButton(
-              onPressed:
-                  state.profile == null || state.isSaving || _runningAction
-                  ? null
-                  : () => _editProfile(state.profile!),
-              icon: HappifyEmoji.edit(size: 24),
-              tooltip: 'Edit profile',
-            ),
-          ],
+
           children: [
             _ProfileSummary(
               state: state,
@@ -157,20 +210,7 @@ class _BlocProfileViewState extends State<BlocProfileView> {
                   ? null
                   : () => _editProfile(state.profile!),
             ),
-            const SizedBox(height: 18),
-            Text(
-              'Wellbeing preferences',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 10),
-            _PreferenceSummary(
-              state: state,
-              onRetry: context.read<ProfileCubit>().loadPreference,
-              onOpen: _runningAction
-                  ? null
-                  : () =>
-                        _navigate(BlocProfileDestination.wellbeingPreferences),
-            ),
+
             if (state.profile != null &&
                 state.profile!.role != 'PSYCHOLOGIST') ...[
               const SizedBox(height: 18),
@@ -181,45 +221,7 @@ class _BlocProfileViewState extends State<BlocProfileView> {
                     : () => _applyPsychologist(state.profile!),
               ),
             ],
-            const SizedBox(height: 18),
-            Text(
-              'Current app settings',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 10),
-            ListenableBuilder(
-              listenable: widget.settings,
-              builder: (context, _) => FeatureCard(
-                onTap: _runningAction
-                    ? null
-                    : () => _navigate(BlocProfileDestination.accessibility),
-                child: Column(
-                  children: [
-                    _ValueRow(
-                      label: 'Text scale',
-                      value: prettyEnum(widget.settings.textScale),
-                    ),
-                    _ValueRow(
-                      label: 'High contrast',
-                      value: _enabled(widget.settings.highContrast),
-                    ),
-                    _ValueRow(
-                      label: 'Reduced motion',
-                      value: _enabled(widget.settings.reducedMotion),
-                    ),
-                    _ValueRow(
-                      label: 'Screen reader optimized',
-                      value: _enabled(widget.settings.screenReaderOptimized),
-                    ),
-                    _ValueRow(
-                      label: 'Audio mode',
-                      value: _enabled(widget.settings.audioMode),
-                      last: true,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+
             const SizedBox(height: 18),
             Text(
               'Settings and actions',
@@ -233,17 +235,9 @@ class _BlocProfileViewState extends State<BlocProfileView> {
               subtitle: 'Enable care updates and important messages',
               onTap: _runningAction
                   ? null
-                  : () => _runAction(widget.onNotifications),
+                  : () => context.push('/notifications'),
             ),
-            _ProfileActionTile(
-              icon: HappifyEmoji.shield(size: 38),
 
-              title: 'Consent and privacy',
-              subtitle: 'Review AI, voice, device, and heatmap choices',
-              onTap: _runningAction
-                  ? null
-                  : () => _navigate(BlocProfileDestination.consent),
-            ),
             _ProfileActionTile(
               icon: HappifyEmoji.phone(size: 38),
 
@@ -255,12 +249,17 @@ class _BlocProfileViewState extends State<BlocProfileView> {
             ),
             _ProfileActionTile(
               icon: HappifyEmoji.care(size: 38),
-
               title: 'Professional care',
-              subtitle: 'Providers, referrals, status, and care chat',
+              subtitle: 'Request support and review referral status',
               onTap: _runningAction
                   ? null
                   : () => _navigate(BlocProfileDestination.professionalCare),
+            ),
+            _ProfileActionTile(
+              icon: HappifyEmoji.chat(size: 38),
+              title: 'Care chats',
+              subtitle: 'Message your care professional',
+              onTap: _runningAction ? null : () => context.push('/care/chats'),
             ),
             _ProfileActionTile(
               icon: HappifyEmoji.microphone(size: 38),
@@ -271,24 +270,17 @@ class _BlocProfileViewState extends State<BlocProfileView> {
                   ? null
                   : () => _navigate(BlocProfileDestination.voiceCompanion),
             ),
-            _ProfileActionTile(
-              icon: HappifyEmoji.companion(size: 38),
 
-              title: 'Happify Companion',
-              subtitle: 'Pairing, telemetry, commands, and updates',
-              onTap: _runningAction
-                  ? null
-                  : () => _navigate(BlocProfileDestination.companion),
-            ),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _runningAction
-                    ? null
-                    : () => _runAction(widget.onSignOut),
-                icon: HappifyEmoji.signOut(size: 24),
-                label: Text(_runningAction ? 'Please wait...' : 'Sign out'),
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: _runningAction ? null : _confirmSignOut,
+                child: Text(_runningAction ? 'Please wait...' : 'Sign out'),
               ),
             ),
           ],
@@ -296,8 +288,6 @@ class _BlocProfileViewState extends State<BlocProfileView> {
       },
     );
   }
-
-  String _enabled(bool value) => value ? 'Enabled' : 'Off';
 }
 
 class _ProfileSummary extends StatelessWidget {
@@ -356,10 +346,9 @@ class _ProfileSummary extends StatelessWidget {
                 Text(profile.bio, textAlign: TextAlign.center),
               ],
               const SizedBox(height: 14),
-              FilledButton.tonalIcon(
+              FilledButton.tonal(
                 onPressed: onEdit,
-                icon: HappifyEmoji.edit(size: 24),
-                label: const Text('Edit display name and bio'),
+                child: const Text('Edit profile'),
               ),
             ],
           ),
@@ -367,89 +356,6 @@ class _ProfileSummary extends StatelessWidget {
       ],
     );
   }
-}
-
-class _PreferenceSummary extends StatelessWidget {
-  const _PreferenceSummary({
-    required this.state,
-    required this.onRetry,
-    required this.onOpen,
-  });
-
-  final ProfileState state;
-  final VoidCallback onRetry;
-  final VoidCallback? onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final preference = state.preference;
-    if (state.preferenceStatus == ProfileLoadStatus.loading &&
-        preference == null) {
-      return const FeatureCard(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-    if (state.preferenceStatus == ProfileLoadStatus.failure &&
-        preference == null) {
-      return _ProfileLoadCard(
-        message:
-            state.preferenceError ?? 'Wellbeing preferences are unavailable.',
-        onRetry: onRetry,
-      );
-    }
-    if (preference == null) {
-      return FeatureCard(
-        onTap: onOpen,
-        child: const Text(
-          'No wellbeing preferences have been saved. Open settings to add them.',
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-    return Column(
-      children: [
-        if (state.preferenceError != null) ...[
-          _ProfileLoadCard(message: state.preferenceError!, onRetry: onRetry),
-          const SizedBox(height: 10),
-        ],
-        FeatureCard(
-          onTap: onOpen,
-          child: Column(
-            children: [
-              _ValueRow(
-                label: 'Primary goal',
-                value: _fallback(preference.primaryGoal),
-              ),
-              _ValueRow(
-                label: 'Support tone',
-                value: _fallback(preference.supportTone),
-              ),
-              _ValueRow(
-                label: 'Triggers',
-                value: preference.triggers.isEmpty
-                    ? 'None saved'
-                    : preference.triggers.join(', '),
-              ),
-              _ValueRow(
-                label: 'High-risk support',
-                value: _fallback(preference.highRiskAction),
-              ),
-              _ValueRow(
-                label: 'Privacy consent',
-                value: 'Manage in Consent and privacy',
-                last: true,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _fallback(String value) => value.isEmpty ? 'Not set' : value;
 }
 
 class _PsychologistApplicationCard extends StatelessWidget {
@@ -532,41 +438,6 @@ class _ProfileLoadCard extends StatelessWidget {
   }
 }
 
-class _ValueRow extends StatelessWidget {
-  const _ValueRow({
-    required this.label,
-    required this.value,
-    this.last = false,
-  });
-
-  final String label;
-  final String value;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: last ? 0 : 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          const SizedBox(width: 16),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ProfileActionTile extends StatelessWidget {
   const _ProfileActionTile({
     required this.icon,
@@ -589,7 +460,11 @@ class _ProfileActionTile extends StatelessWidget {
       leading: ExcludeSemantics(child: icon),
       title: Text(title, style: Theme.of(context).textTheme.titleMedium),
       subtitle: Text(subtitle),
-      trailing: HappifyEmoji.next(size: 22),
+      trailing: Icon(
+        PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+        color: Colors.black,
+        size: 22,
+      ),
     );
   }
 }

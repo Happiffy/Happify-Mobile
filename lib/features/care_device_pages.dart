@@ -287,7 +287,7 @@ class _VoicePageState extends State<VoicePage> {
     final urgent = risk == 'HIGH' || risk == 'CRISIS';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Happify Companion'),
+        title: const Text('Voice companion'),
         actions: [
           TextButton.icon(
             onPressed: _recording || _uploading ? null : _startNewSession,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sign_in_button/sign_in_button.dart';
 
 import '../theme/happify_colors.dart';
 import '../theme/happify_theme.dart';
@@ -19,45 +18,114 @@ class GoogleAuthButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) => _PressableShadow(
-        enabled: !loading,
-        shadowColor: const Color(0xFFD9D9D9),
-        child: IgnorePointer(
-          ignoring: loading,
-          child: Semantics(
-            button: true,
-            enabled: !loading,
-            label: loading ? 'Google sign-in loading' : label,
-            child: SignInButtonBuilder(
-              text: loading ? 'Loading...' : label,
+      builder: (context, constraints) => IgnorePointer(
+        ignoring: loading,
+        child: Semantics(
+          button: true,
+          enabled: !loading,
+          label: loading ? 'Google sign-in loading' : label,
+          child: SizedBox(
+            width: constraints.maxWidth,
+            height: 56,
+            child: OutlinedButton(
               onPressed: onPressed,
-              width: constraints.maxWidth,
-              height: 56,
-              elevation: 0,
-              backgroundColor: Colors.white,
-              textColor: HappifyColors.ink,
-              textStyle: const TextStyle(
-                color: HappifyColors.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(HappifyRadii.button),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: HappifyColors.ink,
                 side: const BorderSide(color: HappifyColors.line, width: 2),
-              ),
-              image: const Image(
-                image: AssetImage(
-                  'assets/logos/google_light.png',
-                  package: 'sign_in_button',
+                backgroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(HappifyRadii.button),
                 ),
-                height: 36,
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
               ),
+              child: loading
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const _GoogleMark(),
+                        const SizedBox(width: 12),
+                        Text(label),
+                      ],
+                    ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 22,
+      width: 22,
+      child: CustomPaint(painter: _GoogleMarkPainter()),
+    );
+  }
+}
+
+class _GoogleMarkPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -.42,
+      1.28,
+      true,
+      paint,
+    );
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      .86,
+      1.6,
+      true,
+      paint,
+    );
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      2.46,
+      1.25,
+      true,
+      paint,
+    );
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      3.71,
+      2.15,
+      true,
+      paint,
+    );
+    paint.color = Colors.white;
+    canvas.drawCircle(center, radius * .48, paint);
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawRect(
+      Rect.fromLTWH(center.dx, center.dy - radius * .18, radius, radius * .36),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class HappifyButton extends StatelessWidget {

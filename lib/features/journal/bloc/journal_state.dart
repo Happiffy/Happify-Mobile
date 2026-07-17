@@ -10,6 +10,8 @@ class JournalState extends Equatable {
     this.hasMore = false,
     this.creating = false,
     this.loadingMore = false,
+    this.startDate,
+    this.endDate,
     this.errorMessage,
     this.actionError,
     this.lastCreatedRisk,
@@ -21,6 +23,8 @@ class JournalState extends Equatable {
   final bool hasMore;
   final bool creating;
   final bool loadingMore;
+  final DateTime? startDate;
+  final DateTime? endDate;
   final String? errorMessage;
   final String? actionError;
   final String? lastCreatedRisk;
@@ -34,6 +38,9 @@ class JournalState extends Equatable {
     bool? hasMore,
     bool? creating,
     bool? loadingMore,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool clearDates = false,
     String? errorMessage,
     bool clearError = false,
     String? actionError,
@@ -48,6 +55,8 @@ class JournalState extends Equatable {
       hasMore: hasMore ?? this.hasMore,
       creating: creating ?? this.creating,
       loadingMore: loadingMore ?? this.loadingMore,
+      startDate: clearDates ? null : startDate ?? this.startDate,
+      endDate: clearDates ? null : endDate ?? this.endDate,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       actionError: clearActionError ? null : actionError ?? this.actionError,
       lastCreatedRisk: clearLastCreatedRisk
@@ -64,6 +73,8 @@ class JournalState extends Equatable {
     hasMore,
     creating,
     loadingMore,
+    startDate,
+    endDate,
     errorMessage,
     actionError,
     lastCreatedRisk,

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
-import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
 import '../../core/widgets/happify_emoji.dart';
@@ -50,10 +51,9 @@ class _BlocCommunityView extends StatefulWidget {
 }
 
 class _BlocCommunityViewState extends State<_BlocCommunityView> {
-  final _alias = TextEditingController(text: 'Anonymous Quokka');
+  final _alias = TextEditingController(text: 'Anonymous');
   final _content = TextEditingController();
   String? _postMood;
-  String _heatmapMood = 'NEUTRAL';
 
   @override
   void dispose() {
@@ -63,12 +63,12 @@ class _BlocCommunityViewState extends State<_BlocCommunityView> {
   }
 
   Future<void> _compose() async {
-    if (_alias.text.trim().isEmpty || _content.text.trim().isEmpty) {
-      showMessage(context, 'Add an alias and your story.');
+    if (_content.text.trim().isEmpty) {
+      showMessage(context, 'Write a story before sharing.');
       return;
     }
     final created = await context.read<CommunityCubit>().createPost(
-      alias: _alias.text,
+      alias: _alias.text.trim().isEmpty ? 'Anonymous' : _alias.text.trim(),
       content: _content.text,
       mood: _postMood,
     );
@@ -119,27 +119,6 @@ class _BlocCommunityViewState extends State<_BlocCommunityView> {
     );
   }
 
-  Future<void> _contribute() async {
-    final callback = widget.requestCoarseRegionKey;
-    if (callback == null) {
-      showMessage(
-        context,
-        'Location contribution is unavailable until a location gateway is connected.',
-      );
-      return;
-    }
-    try {
-      final regionKey = await callback();
-      if (!mounted || regionKey == null || regionKey.isEmpty) return;
-      await context.read<CommunityCubit>().contributeHeatmap(
-        regionKey: regionKey,
-        mood: _heatmapMood,
-      );
-    } catch (error) {
-      if (mounted) showMessage(context, failureMessage(error));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocListener<CommunityCubit, CommunityState>(
@@ -183,12 +162,7 @@ class _BlocCommunityViewState extends State<_BlocCommunityView> {
                       onComment: _comment,
                       onReport: _report,
                     ),
-                    _CommunityHeatmapTab(
-                      mood: _heatmapMood,
-                      onMoodChanged: (value) =>
-                          setState(() => _heatmapMood = value ?? 'NEUTRAL'),
-                      onContribute: _contribute,
-                    ),
+                    const _CommunityHeatmapTab(),
                   ],
                 ),
               ),
@@ -236,8 +210,7 @@ class _CommunityFeedTab extends StatelessWidget {
                       controller: alias,
                       enabled: !state.composing,
                       maxLength: 60,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Alias'),
+                      decoration: const InputDecoration(labelText: 'Pseudonym'),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -436,33 +409,17 @@ class _CommunityPostCard extends StatelessWidget {
 }
 
 class _CommunityHeatmapTab extends StatelessWidget {
-  const _CommunityHeatmapTab({
-    required this.mood,
-    required this.onMoodChanged,
-    required this.onContribute,
-  });
-
-  final String mood;
-  final ValueChanged<String?> onMoodChanged;
-  final Future<void> Function() onContribute;
+  const _CommunityHeatmapTab();
 
   @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<CommunityCubit, CommunityState>(
-      builder: (context, state) {
-        return RefreshIndicator(
+  Widget build(BuildContext context) =>
+      BlocBuilder<CommunityCubit, CommunityState>(
+        builder: (context, state) => RefreshIndicator(
           onRefresh: context.read<CommunityCubit>().loadHeatmap,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
             children: [
-              const FeatureCard(
-                color: HappifyColors.purpleSurface,
-                child: Text(
-                  'The backend only releases regions meeting its minimum anonymity cohort. The app sends a coarse grid key, never exact coordinates.',
-                ),
-              ),
-              const SizedBox(height: 12),
               AsyncStateView(
                 loading: state.heatmapStatus == CommunityHeatmapStatus.loading,
                 error: state.heatmapStatus == CommunityHeatmapStatus.failure
@@ -470,112 +427,84 @@ class _CommunityHeatmapTab extends StatelessWidget {
                     : null,
                 isEmpty: state.heatmapStatus == CommunityHeatmapStatus.empty,
                 emptyMessage:
-                    'No region currently meets the anonymous cohort threshold.',
+                    'No anonymous regional insights are available yet.',
                 onRetry: context.read<CommunityCubit>().loadHeatmap,
-                child: _BlocPrivacyHeatmap(items: state.heatmapItems),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: mood,
-                decoration: const InputDecoration(
-                  labelText: 'Mood to contribute',
-                ),
-                items: moodOptions
-                    .map(
-                      (option) => DropdownMenuItem(
-                        value: option.$1,
-                        child: Text('${option.$3} ${option.$2}'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: state.contributingHeatmap ? null : onMoodChanged,
-              ),
-              const SizedBox(height: 12),
-              HappifyButton(
-                label: state.contributingHeatmap
-                    ? 'Contributing...'
-                    : 'Contribute coarse location',
-                onPressed: state.contributingHeatmap ? null : onContribute,
+                child: _PrivacyHeatmap(items: state.heatmapItems),
               ),
             ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
 }
 
-class _BlocPrivacyHeatmap extends StatelessWidget {
-  const _BlocPrivacyHeatmap({required this.items});
-
+class _PrivacyHeatmap extends StatelessWidget {
+  const _PrivacyHeatmap({required this.items});
   final List<Map<String, dynamic>> items;
+
+  ({double latitude, double longitude})? _parseRegion(String key) {
+    final match = RegExp(r'^G([NS])(\d+)_([EW])(\d+)$').firstMatch(key);
+    if (match == null) return null;
+    return (
+      latitude:
+          double.parse(match.group(2)!) / 10 * (match.group(1) == 'S' ? -1 : 1),
+      longitude:
+          double.parse(match.group(4)!) / 10 * (match.group(3) == 'W' ? -1 : 1),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FeatureCard(
-      color: HappifyColors.surfaceMuted,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final tileWidth = ((constraints.maxWidth - 20) / 3).clamp(
-            86.0,
-            102.0,
-          );
-          return Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: items.map((item) {
-              final moods = objectMap(item['moods']);
-              var dominant = 'NEUTRAL';
-              var max = -1;
-              for (final entry in moods.entries) {
-                final count = (entry.value as num? ?? 0).toInt();
-                if (count > max) {
-                  dominant = entry.key;
-                  max = count;
-                }
-              }
-              return Semantics(
-                label:
-                    '${item['regionKey']}, ${item['count']} anonymous contributions, mostly ${prettyEnum(dominant)}',
-                child: SizedBox(
-                  width: tileWidth,
-                  height: tileWidth,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: moodColor(dominant),
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            item['regionKey']?.toString() ?? '',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          Text(
-                            '${item['count'] ?? 0} people',
-                            textAlign: TextAlign.center,
-                          ),
-                          Text(
-                            prettyEnum(dominant),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          );
-        },
+    final polygons = <Polygon>[];
+    for (final item in items) {
+      final region = _parseRegion(item['regionKey']?.toString() ?? '');
+      if (region == null) continue;
+      final moods = objectMap(item['moods']);
+      var dominant = 'NEUTRAL';
+      var highest = -1;
+      for (final entry in moods.entries) {
+        final value = (entry.value as num? ?? 0).toInt();
+        if (value > highest) {
+          dominant = entry.key;
+          highest = value;
+        }
+      }
+      final color = moodColor(dominant);
+      polygons.add(
+        Polygon(
+          points: [
+            LatLng(region.latitude, region.longitude),
+            LatLng(region.latitude, region.longitude + .1),
+            LatLng(region.latitude + .1, region.longitude + .1),
+            LatLng(region.latitude + .1, region.longitude),
+          ],
+          color: color.withValues(alpha: .58),
+          borderColor: color,
+          borderStrokeWidth: 2,
+          label: '${item['count']} · ${prettyEnum(dominant)}',
+          labelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      height: 340,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: FlutterMap(
+          options: const MapOptions(
+            initialCenter: LatLng(-6.2, 106.8),
+            initialZoom: 9,
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.happify.app.mobile_happify',
+            ),
+            PolygonLayer(polygons: polygons),
+          ],
+        ),
       ),
     );
   }

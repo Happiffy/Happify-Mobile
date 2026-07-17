@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
-import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
 import '../../core/widgets/happify_emoji.dart';
 import '../../core/widgets/happify_rich_text.dart';
+import '../../core/widgets/history_widgets.dart';
 import 'bloc/journal_cubit.dart';
 import 'bloc/journal_state.dart';
 import 'data/journal_repository.dart';
@@ -87,145 +88,156 @@ class _BlocJournalViewState extends State<_BlocJournalView> {
   Widget build(BuildContext context) {
     return BlocBuilder<JournalCubit, JournalState>(
       builder: (context, state) {
-        return HappifyPage(
-          title: 'Journal',
-          refresh: context.read<JournalCubit>().refresh,
-          bottomPadding: 110,
-          children: [
-            FeatureCard(
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _title,
-                    enabled: !state.creating,
-                    maxLength: 120,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(labelText: 'Entry title'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _content,
-                    enabled: !state.creating,
-                    minLines: 5,
-                    maxLines: 10,
-                    maxLength: 20000,
-                    decoration: const InputDecoration(
-                      labelText: 'Write what you are feeling',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String?>(
-                    initialValue: _detectedMood,
-                    decoration: const InputDecoration(
-                      labelText: 'Mood hint (optional)',
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        child: Text('Let Happify reflect'),
+        return LoadMoreSentinel(
+          enabled: state.hasMore,
+          loading: state.loadingMore,
+          onLoadMore: context.read<JournalCubit>().loadMore,
+          child: HappifyPage(
+            title: 'Journal',
+            refresh: context.read<JournalCubit>().refresh,
+            bottomPadding: 110,
+            children: [
+              FeatureCard(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _title,
+                      enabled: !state.creating,
+                      maxLength: 120,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Entry title',
                       ),
-                      ...moodOptions.map(
-                        (option) => DropdownMenuItem<String?>(
-                          value: option.$1,
-                          child: Row(
-                            children: [
-                              happifyMoodEmoji(option.$1, size: 24),
-                              const SizedBox(width: 8),
-                              Text(option.$2),
-                            ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _content,
+                      enabled: !state.creating,
+                      minLines: 5,
+                      maxLines: 10,
+                      maxLength: 20000,
+                      decoration: const InputDecoration(
+                        labelText: 'Write what you are feeling',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String?>(
+                      initialValue: _detectedMood,
+                      decoration: const InputDecoration(
+                        labelText: 'Mood hint (optional)',
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          child: Text('Let Happify reflect'),
+                        ),
+                        ...moodOptions.map(
+                          (option) => DropdownMenuItem<String?>(
+                            value: option.$1,
+                            child: Row(
+                              children: [
+                                happifyMoodEmoji(option.$1, size: 24),
+                                const SizedBox(width: 8),
+                                Text(option.$2),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: state.creating
+                          ? null
+                          : (value) => setState(() => _detectedMood = value),
+                    ),
+                    const SizedBox(height: 14),
+                    HappifyButton(
+                      label: state.creating
+                          ? 'Saving and reflecting...'
+                          : 'Save entry',
+                      onPressed: state.isBusy ? null : _save,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              FeatureCard(
+                color: Colors.white,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'History',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    HistoryDateRangeFilter(
+                      startDate: state.startDate,
+                      endDate: state.endDate,
+                      onApply: (startDate, endDate) =>
+                          context.read<JournalCubit>().applyDateFilter(
+                            startDate: startDate,
+                            endDate: endDate,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              AsyncStateView(
+                loading: state.status == JournalStatus.loading,
+                error: state.status == JournalStatus.failure
+                    ? state.errorMessage
+                    : null,
+                isEmpty: state.status == JournalStatus.empty,
+                emptyMessage: 'Your saved journal entries will appear here.',
+                onRetry: context.read<JournalCubit>().load,
+                child: Column(
+                  children: [
+                    ...state.entries.map(
+                      (entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _JournalEntryCard(entry: entry),
+                      ),
+                    ),
+                    if (state.actionError != null && !state.creating)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: FeatureCard(
+                          child: Text(
+                            'We could not save this entry. Please try again.',
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
-                    ],
-                    onChanged: state.creating
-                        ? null
-                        : (value) => setState(() => _detectedMood = value),
-                  ),
-                  const SizedBox(height: 14),
-                  HappifyButton(
-                    label: state.creating
-                        ? 'Saving and reflecting...'
-                        : 'Save entry',
-                    onPressed: state.isBusy ? null : _save,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const FeatureCard(
-              color: HappifyColors.purpleSurface,
-              child: Text(
-                'If AI processing consent is active, Happify generates a gentle reflection. Otherwise the backend uses privacy-preserving local rules. High-risk entries create a care request.',
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text('History', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 10),
-            AsyncStateView(
-              loading: state.status == JournalStatus.loading,
-              error: state.status == JournalStatus.failure
-                  ? state.errorMessage
-                  : null,
-              isEmpty: state.status == JournalStatus.empty,
-              emptyMessage: 'Your saved journal entries will appear here.',
-              onRetry: context.read<JournalCubit>().load,
-              child: Column(
-                children: [
-                  ...state.entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _JournalEntryCard(entry: entry),
-                    ),
-                  ),
-                  if (state.actionError != null && !state.creating)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: const FeatureCard(
-                        child: Text(
-                          'We could not save this entry. Please try again.',
-                          textAlign: TextAlign.center,
-                        ),
+                    if (state.loadingMore)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: CircularProgressIndicator(),
                       ),
-                    ),
-                  if (state.hasMore || state.loadingMore)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: OutlinedButton.icon(
-                        onPressed: state.loadingMore
-                            ? null
-                            : context.read<JournalCubit>().loadMore,
-                        icon: state.loadingMore
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : HappifyEmoji.next(size: 22),
-
-                        label: Text(
-                          state.loadingMore
-                              ? 'Loading history...'
-                              : 'Load more',
-                        ),
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 }
 
-class _JournalEntryCard extends StatelessWidget {
+class _JournalEntryCard extends StatefulWidget {
   const _JournalEntryCard({required this.entry});
 
   final Map<String, dynamic> entry;
 
   @override
+  State<_JournalEntryCard> createState() => _JournalEntryCardState();
+}
+
+class _JournalEntryCardState extends State<_JournalEntryCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
     final content = entry['content']?.toString() ?? '';
     final reflection = entry['aiReflection']?.toString();
     final mood = entry['detectedMood']?.toString();
@@ -245,13 +257,19 @@ class _JournalEntryCard extends StatelessWidget {
           entry['title']?.toString() ?? 'Untitled entry',
           style: Theme.of(context).textTheme.titleMedium,
         ),
-
         subtitle: Text(shortDate(entry['createdAt'])),
+        onExpansionChanged: (expanded) => setState(() => _expanded = expanded),
         trailing: Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Chip(label: Text(prettyEnum(entry['riskLevel']))),
-            HappifyEmoji.next(size: 22),
+            Icon(
+              _expanded
+                  ? PhosphorIcons.caretDown(PhosphorIconsStyle.bold)
+                  : PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+              color: Colors.black,
+              size: 20,
+            ),
           ],
         ),
         children: [

@@ -1,14 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'package:mobile_happify/core/app_services.dart';
+import 'package:mobile_happify/core/happify_repository.dart';
 import 'package:mobile_happify/core/theme/happify_colors.dart';
 import 'package:mobile_happify/features/care/bloc/care_chat_cubit.dart';
 import 'package:mobile_happify/features/care/bloc/care_chat_state.dart';
 import 'package:mobile_happify/core/widgets/common_widgets.dart';
 import 'package:mobile_happify/core/widgets/happify_emoji.dart';
+import 'package:mobile_happify/core/widgets/happify_button.dart';
 import 'package:mobile_happify/features/care/bloc/care_cubit.dart';
 import 'package:mobile_happify/features/care/bloc/care_state.dart';
 import 'package:mobile_happify/features/care/data/care_chat_realtime.dart';
@@ -36,34 +43,8 @@ class _BlocCareView extends StatelessWidget {
 
   Future<void> _openChat(BuildContext context, String id) async {
     context.read<CareCubit>().consumePendingChat();
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => BlocCareChatSheet(sessionId: id),
-    );
-    if (context.mounted) {
-      unawaited(context.read<CareCubit>().refresh());
-    }
-  }
-
-  Future<void> _request(
-    BuildContext context,
-    Map<String, dynamic>? provider,
-  ) async {
-    final reason = await showTextPrompt(
-      context,
-      title: 'Request professional care',
-      label: 'What support do you need?',
-      maxLines: 4,
-    );
-    if (reason == null || reason.isEmpty || !context.mounted) return;
-    final success = await context.read<CareCubit>().requestCare(
-      reason: reason,
-      provider: provider,
-    );
-    if (context.mounted && success) {
-      showMessage(context, 'Care request submitted.');
-    }
+    await context.push('/care/chat/$id');
+    if (context.mounted) unawaited(context.read<CareCubit>().refresh());
   }
 
   @override
@@ -81,10 +62,7 @@ class _BlocCareView extends StatelessWidget {
         body: BlocBuilder<CareCubit, CareState>(
           builder: (context, state) {
             final overview = state.overview;
-            final empty =
-                overview.providers.isEmpty &&
-                overview.referrals.isEmpty &&
-                overview.chats.isEmpty;
+            final empty = overview.referrals.isEmpty && overview.chats.isEmpty;
             return HappifyPage(
               refresh: context.read<CareCubit>().refresh,
               children: [
@@ -105,14 +83,18 @@ class _BlocCareView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      FilledButton.icon(
+                      HappifyButton(
+                        label: 'New care request',
                         onPressed: state.submitting
                             ? null
-                            : () => _request(context, null),
-                        icon: ExcludeSemantics(
-                          child: HappifyEmoji.referral(size: 28),
-                        ),
-                        label: const Text('New care request'),
+                            : () async {
+                                await context.push('/care/request');
+                                if (context.mounted) {
+                                  unawaited(
+                                    context.read<CareCubit>().refresh(),
+                                  );
+                                }
+                              },
                       ),
                       const SizedBox(height: 18),
                       Text(
@@ -157,36 +139,10 @@ class _BlocCareView extends StatelessWidget {
                           subtitle: Text(
                             '${prettyEnum(chat['status'])} · ${shortDate(chat['updatedAt'])}',
                           ),
-                          trailing: HappifyEmoji.next(size: 22),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Providers',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      if (overview.providers.isEmpty)
-                        const Text('No active providers are configured.'),
-                      ...overview.providers.map(
-                        (provider) => FeatureCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                provider['name'].toString(),
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                '${prettyEnum(provider['type'])} · ${provider['region']}',
-                              ),
-                              Text(provider['description'].toString()),
-                              TextButton(
-                                onPressed: state.submitting
-                                    ? null
-                                    : () => _request(context, provider),
-                                child: const Text('Request this provider'),
-                              ),
-                            ],
+                          trailing: Icon(
+                            PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                            color: Colors.black,
+                            size: 20,
                           ),
                         ),
                       ),
@@ -202,8 +158,155 @@ class _BlocCareView extends StatelessWidget {
   }
 }
 
-class BlocCareChatSheet extends StatelessWidget {
-  const BlocCareChatSheet({required this.sessionId, super.key});
+class BlocCareRequestPage extends StatelessWidget {
+  const BlocCareRequestPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) =>
+          CareCubit(repository: context.read<CareRepository>()),
+      child: const _BlocCareRequestView(),
+    );
+  }
+}
+
+class _BlocCareRequestView extends StatefulWidget {
+  const _BlocCareRequestView();
+
+  @override
+  State<_BlocCareRequestView> createState() => _BlocCareRequestViewState();
+}
+
+class _BlocCareRequestViewState extends State<_BlocCareRequestView> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final reason = _reason.text.trim();
+    if (reason.isEmpty) return;
+    final success = await context.read<CareCubit>().requestCare(reason: reason);
+    if (!mounted || !success) return;
+    context.pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('New care request')),
+      body: HappifyPage(
+        children: [
+          const FeatureCard(
+            color: HappifyColors.purpleSurface,
+            child: Text(
+              'Tell us what support you need. A care professional will review your request.',
+            ),
+          ),
+          const SizedBox(height: 16),
+          BlocBuilder<CareCubit, CareState>(
+            builder: (context, state) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _reason,
+                  enabled: !state.submitting,
+                  maxLines: 4,
+                  maxLength: 1200,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'What support do you need?',
+                  ),
+                  onSubmitted: (_) => _submit(),
+                ),
+                if (state.errorMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(state.errorMessage!),
+                ],
+                const SizedBox(height: 16),
+                HappifyButton(
+                  label: state.submitting ? 'Submitting...' : 'Submit request',
+                  onPressed: state.submitting ? null : _submit,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CareChatListPage extends StatelessWidget {
+  const CareChatListPage({super.key});
+
+  @override
+  Widget build(BuildContext context) => BlocProvider(
+    create: (context) =>
+        CareCubit(repository: context.read<CareRepository>())..load(),
+    child: Scaffold(
+      appBar: AppBar(title: const Text('Care chats')),
+      body: BlocBuilder<CareCubit, CareState>(
+        builder: (context, state) => HappifyPage(
+          children: [
+            if (state.status == CareStatus.loading)
+              const Center(child: CircularProgressIndicator())
+            else if (state.overview.chats.isEmpty)
+              const Text('No care chats are available yet.')
+            else
+              ...state.overview.chats.map((chat) {
+                final psychologist = objectMap(chat['psychologist']);
+                final name =
+                    psychologist['displayName']?.toString() ??
+                    'Care professional';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: FeatureCard(
+                    onTap: () => context.push('/care/chat/${chat['id']}'),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          child: Text(name.substring(0, 1).toUpperCase()),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                chat['status'] == 'OPEN'
+                                    ? 'Online'
+                                    : 'Chat closed',
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                          color: Colors.black,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class BlocCareChatPage extends StatelessWidget {
+  const BlocCareChatPage({required this.sessionId, super.key});
 
   final String sessionId;
 
@@ -233,6 +336,8 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
   final _message = TextEditingController();
   late CareChatCubit _cubit;
   bool _isTyping = false;
+  String? _imageUrl;
+  bool _uploadingImage = false;
 
   @override
   void didChangeDependencies() {
@@ -247,6 +352,102 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
     unawaited(_cubit.setTyping(isTyping));
   }
 
+  Future<void> _pickImage() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1600,
+    );
+    if (file == null || !mounted) return;
+    setState(() => _uploadingImage = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final extension = file.name.toLowerCase().endsWith('.png')
+          ? 'png'
+          : file.name.toLowerCase().endsWith('.webp')
+          ? 'webp'
+          : 'jpeg';
+      final api = AppServices.of(context).auth.api;
+      final image = await HappifyRepository(api).uploadImage(
+        imageBase64: base64Encode(bytes),
+        contentType: 'image/$extension',
+      );
+      if (mounted) setState(() => _imageUrl = image['url']?.toString());
+    } catch (error) {
+      if (mounted) showMessage(context, failureMessage(error));
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
+  }
+
+  Future<void> _confirmStatusChange(CareChatState state) async {
+    final reopening = state.session['status'] != 'OPEN';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                reopening
+                    ? PhosphorIcons.arrowCounterClockwise(
+                        PhosphorIconsStyle.bold,
+                      )
+                    : PhosphorIcons.xCircle(PhosphorIconsStyle.bold),
+                color: reopening ? HappifyColors.green : HappifyColors.red,
+                size: 34,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                reopening ? 'Reopen this chat?' : 'Close this chat?',
+                style: Theme.of(dialogContext).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                reopening
+                    ? 'You and your care professional can continue this conversation.'
+                    : 'You can reopen this conversation later if you need to continue.',
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: reopening
+                            ? HappifyColors.green
+                            : HappifyColors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: Text(reopening ? 'Reopen' : 'Close chat'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) await _cubit.toggleStatus();
+  }
+
   @override
   void dispose() {
     if (_isTyping) unawaited(_cubit.setTyping(false));
@@ -256,9 +457,9 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * .88,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Care chat')),
+      body: SafeArea(
         child: AnimatedPadding(
           duration: const Duration(milliseconds: 180),
           padding: EdgeInsets.fromLTRB(
@@ -271,59 +472,172 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
             builder: (context, state) {
               final messages = objectList(state.session['messages']);
               final open = state.session['status'] == 'OPEN';
+              final me = AppServices.of(
+                context,
+              ).auth.backendUser?['id']?.toString();
+              final sessionUserId = state.session['userId']?.toString();
+              final peer = objectMap(
+                state.session[sessionUserId == me ? 'psychologist' : 'user'],
+              );
+              final peerName =
+                  peer['displayName']?.toString() ?? 'Care professional';
+              final connected =
+                  state.realtimeStatus == CareChatRealtimeStatus.connected;
               return Column(
                 children: [
                   Row(
                     children: [
-                      Expanded(
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: HappifyColors.blue,
                         child: Text(
-                          'Care chat',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                          peerName.substring(0, 1).toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              peerName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              state.typingDisplayName != null
+                                  ? '${state.typingDisplayName} is typing...'
+                                  : connected
+                                  ? 'Online'
+                                  : 'Offline',
+                              style: TextStyle(
+                                color: connected
+                                    ? HappifyColors.greenDark
+                                    : HappifyColors.inkMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       TextButton(
                         onPressed: state.updatingStatus
                             ? null
-                            : context.read<CareChatCubit>().toggleStatus,
+                            : () => _confirmStatusChange(state),
                         child: Text(open ? 'Close chat' : 'Reopen chat'),
                       ),
                     ],
                   ),
-                  if (state.errorMessage != null)
-                    const Text('Care chat is temporarily unavailable.'),
+                  const SizedBox(height: 12),
                   Expanded(
                     child: state.loading
                         ? const Center(child: CircularProgressIndicator())
                         : messages.isEmpty
                         ? const Center(child: Text('No messages yet.'))
-                        : ListView(
-                            children: messages.map((item) {
-                              final sender = objectMap(item['sender']);
-                              return ListTile(
-                                title: Text(
-                                  sender['displayName']?.toString() ??
-                                      prettyEnum(sender['role']),
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            itemCount: messages.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (_, index) {
+                              final item = messages[index];
+                              final senderId =
+                                  item['senderId']?.toString() ??
+                                  objectMap(item['sender'])['id']?.toString();
+                              final mine = senderId == me;
+                              return Align(
+                                alignment: mine
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 290,
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: mine
+                                          ? HappifyColors.blue
+                                          : HappifyColors.surfaceMuted,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['content']?.toString() ?? '',
+                                          style: TextStyle(
+                                            color: mine
+                                                ? Colors.white
+                                                : HappifyColors.ink,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          shortDate(item['createdAt']),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: mine
+                                                ? Colors.white70
+                                                : HappifyColors.inkMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                subtitle: Text(
-                                  item['content']?.toString() ?? '',
-                                ),
-                                trailing: Text(shortDate(item['createdAt'])),
                               );
-                            }).toList(),
+                            },
                           ),
                   ),
                   if (state.session['summary'] != null)
                     FeatureCard(
-                      child: Text('Summary: ${state.session['summary']}'),
+                      child: Text(state.session['summary'].toString()),
                     ),
-                  if (state.typingDisplayName != null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('${state.typingDisplayName} is typing...'),
+                  if (_imageUrl != null)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Image attached',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => setState(() => _imageUrl = null),
+                          icon: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold)),
+                        ),
+                      ],
                     ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
+                      Material(
+                        color: HappifyColors.surfaceMuted,
+                        borderRadius: BorderRadius.circular(16),
+                        child: IconButton(
+                          onPressed: open && !_uploadingImage
+                              ? _pickImage
+                              : null,
+                          icon: _uploadingImage
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Icon(
+                                  PhosphorIcons.image(PhosphorIconsStyle.bold),
+                                ),
+                          tooltip: 'Attach image',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
                           controller: _message,
@@ -331,34 +645,49 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                           maxLength: 1200,
                           onChanged: _setTyping,
                           decoration: const InputDecoration(
-                            labelText: 'Message',
+                            hintText: 'Write a message',
                           ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: open && !state.sending
-                            ? () async {
-                                final content = _message.text.trim();
-                                if (content.isEmpty) return;
-                                final sent = await context
-                                    .read<CareChatCubit>()
-                                    .sendMessage(content);
-                                if (sent) {
+                      const SizedBox(width: 8),
+                      Material(
+                        color: HappifyColors.blue,
+                        borderRadius: BorderRadius.circular(16),
+                        child: IconButton(
+                          color: Colors.white,
+                          onPressed:
+                              open &&
+                                  !state.sending &&
+                                  (_message.text.trim().isNotEmpty ||
+                                      _imageUrl != null)
+                              ? () async {
+                                  final content = _message.text.trim();
+                                  await context.read<CareRepository>().sendChat(
+                                    widget.sessionId,
+                                    content,
+                                    imageUrl: _imageUrl,
+                                  );
+                                  await _cubit.load();
                                   _message.clear();
+                                  setState(() => _imageUrl = null);
                                   _setTyping('');
                                 }
-                              }
-                            : null,
-                        icon: state.sending
-                            ? const SizedBox.square(
-                                dimension: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                              : null,
+                          icon: state.sending
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  PhosphorIcons.paperPlaneTilt(
+                                    PhosphorIconsStyle.fill,
+                                  ),
                                 ),
-                              )
-                            : HappifyEmoji.next(size: 24),
-
-                        tooltip: 'Send message',
+                          tooltip: 'Send message',
+                        ),
                       ),
                     ],
                   ),

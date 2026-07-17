@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const backendUrl = String.fromEnvironment(
   'BE_API_URL',
-  defaultValue: 'https://happify-be-production.up.railway.app',
+  defaultValue: 'https://api.happify.my.id',
 );
 
 const googleServerClientId = String.fromEnvironment(
@@ -152,6 +152,14 @@ class AuthController extends ChangeNotifier {
   bool consentReviewed = false;
   bool googleReady = false;
 
+  String get _consentKey =>
+      'consent-reviewed:${FirebaseAuth.instance.currentUser?.uid ?? ''}';
+
+  Future<void> _restoreConsentState() async {
+    consentReviewed =
+        (await SharedPreferencesAsync().getBool(_consentKey)) ?? false;
+  }
+
   bool get signedIn =>
       firebaseReady && FirebaseAuth.instance.currentUser != null;
   bool get canUseProtectedFeatures => signedIn && backendUser != null;
@@ -215,7 +223,7 @@ class AuthController extends ChangeNotifier {
         data: {'idToken': token, 'mode': 'login'},
       );
       backendUser = objectMap(data['user']);
-      consentReviewed = false;
+      await _restoreConsentState();
       error = null;
     } catch (exception) {
       backendUser = null;
@@ -247,7 +255,7 @@ class AuthController extends ChangeNotifier {
         data: {'idToken': token, 'mode': 'login'},
       );
       backendUser = objectMap(data['user']);
-      consentReviewed = false;
+      await _restoreConsentState();
       return true;
     } catch (exception) {
       backendUser = null;
@@ -297,7 +305,7 @@ class AuthController extends ChangeNotifier {
         },
       );
       backendUser = objectMap(data['user']);
-      consentReviewed = false;
+      await _restoreConsentState();
       return true;
     } catch (exception) {
       backendUser = null;
@@ -341,7 +349,7 @@ class AuthController extends ChangeNotifier {
         data: {'idToken': token, 'displayName': name, 'mode': 'register'},
       );
       backendUser = objectMap(data['user']);
-      consentReviewed = false;
+      await _restoreConsentState();
       return true;
     } catch (exception) {
       if (credential?.user != null && backendUser == null) {
@@ -379,8 +387,9 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  void markConsentReviewed() {
+  Future<void> markConsentReviewed() async {
     consentReviewed = true;
+    await SharedPreferencesAsync().setBool(_consentKey, true);
     notifyListeners();
   }
 

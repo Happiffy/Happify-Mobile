@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'core/app_services.dart';
 import 'core/di/app_scope.dart';
@@ -73,6 +74,11 @@ class _HappifyAppState extends State<HappifyApp> {
           return '/welcome';
         }
         if (widget.auth.canUseProtectedFeatures &&
+            !widget.auth.consentReviewed &&
+            !state.matchedLocation.startsWith('/consent')) {
+          return '/consent';
+        }
+        if (widget.auth.canUseProtectedFeatures &&
             (state.matchedLocation == '/login' ||
                 state.matchedLocation == '/register' ||
                 state.matchedLocation == '/welcome')) {
@@ -92,11 +98,37 @@ class _HappifyAppState extends State<HappifyApp> {
         ),
         GoRoute(path: '/forgot', builder: (_, _) => const ForgotPasswordPage()),
         GoRoute(
+          path: '/profile/edit',
+          builder: (_, _) => const ProfileEditPage(),
+        ),
+        GoRoute(
+          path: '/profile/psychologist',
+          builder: (_, _) => const PsychologistApplicationPage(),
+        ),
+        GoRoute(
+          path: '/notifications',
+          builder: (_, _) => const NotificationSettingsPage(),
+        ),
+        GoRoute(
+          path: '/profile/password',
+          builder: (_, _) => const ChangePasswordPage(),
+        ),
+        GoRoute(
+          path: '/contacts/new',
+          builder: (_, _) => const EmergencyContactFormPage(),
+        ),
+        GoRoute(
+          path: '/contacts/edit',
+          builder: (_, state) => EmergencyContactFormPage(
+            contact: state.extra as Map<String, dynamic>?,
+          ),
+        ),
+        GoRoute(
           path: '/consent',
           builder: (context, _) => BlocConsentPage(
-            onContinue: () {
-              AppServices.of(context).auth.markConsentReviewed();
-              context.go('/app');
+            onContinue: () async {
+              await AppServices.of(context).auth.markConsentReviewed();
+              if (context.mounted) context.go('/app');
             },
 
             onSignOut: () async {
@@ -118,6 +150,19 @@ class _HappifyAppState extends State<HappifyApp> {
           path: '/care',
           builder: (_, state) =>
               BlocCarePage(sessionId: state.uri.queryParameters['sessionId']),
+        ),
+        GoRoute(
+          path: '/care/chats',
+          builder: (_, _) => const CareChatListPage(),
+        ),
+        GoRoute(
+          path: '/care/request',
+          builder: (_, _) => const BlocCareRequestPage(),
+        ),
+        GoRoute(
+          path: '/care/chat/:sessionId',
+          builder: (_, state) =>
+              BlocCareChatPage(sessionId: state.pathParameters['sessionId']!),
         ),
         GoRoute(
           path: '/contacts',
@@ -211,8 +256,6 @@ class _SplashPageState extends State<SplashPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const HappifyMascot(size: 148, semanticLabel: 'Happify mascot'),
-            const SizedBox(height: 24),
-            Text('Happify', style: Theme.of(context).textTheme.displayLarge),
           ],
         ),
       ),
@@ -339,7 +382,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
               const SizedBox(height: 22),
               HappifyButton(
                 label: _index == slides.length - 1 ? 'Start' : 'Next',
-                leading: HappifyEmoji.next(size: 22),
                 onPressed: () async {
                   if (_index == slides.length - 1) {
                     await AppServices.of(context).settings.completeOnboarding();
@@ -376,10 +418,18 @@ class WelcomePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
+            Text(
+              'Happify',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: HappifyColors.green,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
             Center(
               child: Image.asset(
                 'assets/illustrations/auth-welcome.png',
-                height: 250,
+                height: 290,
                 fit: BoxFit.contain,
                 semanticLabel: 'Happify mascot with a journal and phone',
               ),
@@ -421,11 +471,14 @@ class WelcomePage extends StatelessWidget {
               onPressed: () => context.go('/login'),
             ),
             if (firebaseError != null) const SizedBox(height: 12),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => context.go('/register'),
-              child: const Text('Create an account'),
+            const SizedBox(height: 48),
+            Center(
+              child: TextButton(
+                onPressed: () => context.go('/register'),
+                child: const Text('Create an account'),
+              ),
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -521,20 +574,15 @@ class _AuthPageState extends State<AuthPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
+              TextButton.icon(
                 onPressed: () => context.go('/welcome'),
-                icon: HappifyEmoji.back(size: 28),
-                tooltip: 'Back',
-              ),
-              Center(
-                child: Image.asset(
-                  'assets/illustrations/auth-welcome.png',
-                  height: 185,
-                  fit: BoxFit.contain,
-                  semanticLabel: 'Happify mascot with a journal and phone',
+                icon: Icon(
+                  PhosphorIcons.caretLeft(PhosphorIconsStyle.bold),
+                  size: 18,
                 ),
+                label: const Text('Back'),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 28),
               Text(
                 registering ? 'Create account' : 'Sign in',
                 style: Theme.of(context).textTheme.headlineLarge,
@@ -623,28 +671,34 @@ class _AuthPageState extends State<AuthPage> {
                     ? null
                     : 'Use at least 6 characters.',
               ),
-              const SizedBox(height: 22),
+              if (!registering)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.go('/forgot'),
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+              const SizedBox(height: 10),
               HappifyButton(
                 label: auth.busy
                     ? 'Loading...'
                     : registering
                     ? 'Create account'
                     : 'Sign in',
-                leading: HappifyEmoji.next(size: 22),
                 onPressed: auth.busy ? null : _submit,
               ),
-              if (!registering)
-                TextButton(
-                  onPressed: () => context.go('/forgot'),
-                  child: const Text('Forgot password?'),
-                ),
-              TextButton(
-                onPressed: () =>
-                    context.go(registering ? '/login' : '/register'),
-                child: Text(
-                  registering
-                      ? 'Already have an account? Sign in'
-                      : 'Create an account',
+              const SizedBox(height: 20),
+              Center(
+                child: TextButton(
+                  onPressed: () =>
+                      context.go(registering ? '/login' : '/register'),
+                  child: Text(
+                    registering
+                        ? 'Already have an account? Sign in'
+                        : 'Create an account',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ],

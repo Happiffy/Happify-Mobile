@@ -9,4 +9,8 @@ export 'journal_community_pages.dart';
 export 'mood/bloc_mood_page.dart';
 export 'mood_mindfulness_pages.dart';
 export 'profile/bloc_profile_page.dart';
+export 'profile/profile_account_pages.dart';
+export 'profile/notification_settings_page.dart';
+export 'profile/change_password_page.dart';
+export 'profile/emergency_contact_form_page.dart';
 export 'profile_settings_pages.dart';

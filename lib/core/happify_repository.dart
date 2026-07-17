@@ -72,6 +72,17 @@ class HappifyRepository {
     return objectMap(data['preference']);
   }
 
+  Future<Map<String, dynamic>> updateNotificationPreferences(
+    Map<String, bool> notifications,
+  ) async {
+    final data = await api.request(
+      'PATCH',
+      '/preferences/notifications',
+      data: notifications,
+    );
+    return objectMap(data['preference']);
+  }
+
   Future<List<Map<String, dynamic>>> consents() async {
     final data = await api.request('GET', '/consents');
     return objectList(data['items']);
@@ -90,8 +101,20 @@ class HappifyRepository {
     );
   }
 
-  Future<List<Map<String, dynamic>>> moods({int limit = 30}) async {
-    final data = await api.request('GET', '/mood', query: {'limit': limit});
+  Future<List<Map<String, dynamic>>> moods({
+    int limit = 30,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final data = await api.request(
+      'GET',
+      '/mood',
+      query: {
+        'limit': limit,
+        if (startDate case final value?) 'startDate': value,
+        if (endDate case final value?) 'endDate': value,
+      },
+    );
     return objectList(data['items']);
   }
 
@@ -122,11 +145,18 @@ class HappifyRepository {
   Future<List<Map<String, dynamic>>> journals({
     int page = 1,
     int limit = 30,
+    String? startDate,
+    String? endDate,
   }) async {
     final data = await api.request(
       'GET',
       '/journal',
-      query: {'page': page, 'limit': limit},
+      query: {
+        'page': page,
+        'limit': limit,
+        if (startDate case final value?) 'startDate': value,
+        if (endDate case final value?) 'endDate': value,
+      },
     );
     return objectList(data['items']);
   }
@@ -337,11 +367,11 @@ class HappifyRepository {
     return objectMap(data['session']);
   }
 
-  Future<void> sendChat(String id, String content) async {
+  Future<void> sendChat(String id, String content, {String? imageUrl}) async {
     await api.request(
       'POST',
       '/referral/chats/$id/messages',
-      data: {'content': content},
+      data: {'content': content, if (imageUrl != null) 'imageUrl': imageUrl},
     );
   }
 

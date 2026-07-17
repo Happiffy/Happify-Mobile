@@ -28,17 +28,16 @@ class _ToastCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isError = data.type == HappifyToastType.error;
-    final color = isError ? HappifyColors.red : HappifyColors.green;
+    final color = isError ? HappifyColors.redDark : HappifyColors.green;
     return Material(
-      color: Colors.white,
+      color: color,
       borderRadius: BorderRadius.circular(HappifyRadii.field),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(HappifyRadii.field),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            border: Border.all(color: color, width: 2),
+            color: color,
             borderRadius: BorderRadius.circular(HappifyRadii.field),
-            boxShadow: HappifyShadows.card,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -47,9 +46,13 @@ class _ToastCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 11, 6, 10),
                 child: Row(
                   children: [
-                    isError
-                        ? HappifyEmoji.warning(size: 26)
-                        : HappifyEmoji.check(size: 26),
+                    Icon(
+                      isError
+                          ? Icons.error_outline_rounded
+                          : Icons.check_circle_outline_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -59,7 +62,8 @@ class _ToastCard extends StatelessWidget {
                             data.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: Colors.white),
                           ),
                           if (data.message case final message?
                               when message.trim().isNotEmpty)
@@ -67,7 +71,10 @@ class _ToastCard extends StatelessWidget {
                               message,
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: .9),
+                                  ),
                             ),
                         ],
                       ),
@@ -82,7 +89,13 @@ class _ToastCard extends StatelessWidget {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(24),
                             onTap: onDismiss,
-                            child: Center(child: HappifyEmoji.close(size: 18)),
+                            child: const Center(
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
                           ),
                         ),
                       ),

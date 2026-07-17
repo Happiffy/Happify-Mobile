@@ -206,7 +206,6 @@ class _BlocConsentViewState extends State<BlocConsentView> {
                     : state.documents.isEmpty
                     ? 'Continue to Happify'
                     : 'Save and continue',
-                leading: HappifyEmoji.check(size: 22),
                 onPressed: busy
                     ? null
                     : state.documents.isEmpty
@@ -220,11 +219,6 @@ class _BlocConsentViewState extends State<BlocConsentView> {
                     ? () => _runRoute(widget.onContinue)
                     : () => _save(limited: true),
                 child: const Text('Continue with limited features'),
-              ),
-              TextButton.icon(
-                onPressed: busy ? null : () => _runRoute(widget.onSignOut),
-                icon: HappifyEmoji.signOut(size: 22),
-                label: const Text('Sign out'),
               ),
             ],
           );
