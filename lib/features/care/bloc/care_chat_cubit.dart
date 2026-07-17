@@ -135,6 +135,9 @@ class CareChatCubit extends Cubit<CareChatState> {
         final session = objectMap(event.data['session']);
         if (session.isEmpty) return;
         emit(state.copyWith(session: _mergeSession(state.session, session)));
+      case 'presence':
+        final count = (event.data['count'] as num?)?.toInt() ?? 0;
+        emit(state.copyWith(peerOnline: count > 1));
       case 'care-chat:typing':
         _mergeTyping(event.data);
       case 'care-chat:read':

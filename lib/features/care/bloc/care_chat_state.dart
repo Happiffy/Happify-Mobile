@@ -9,6 +9,7 @@ class CareChatState extends Equatable {
     this.updatingStatus = false,
     this.realtimeStatus = CareChatRealtimeStatus.disconnected,
     this.session = const {},
+    this.peerOnline = false,
     this.typingUserId,
     this.typingDisplayName,
     this.errorMessage,
@@ -19,6 +20,7 @@ class CareChatState extends Equatable {
   final bool updatingStatus;
   final CareChatRealtimeStatus realtimeStatus;
   final Map<String, dynamic> session;
+  final bool peerOnline;
   final String? typingUserId;
   final String? typingDisplayName;
   final String? errorMessage;
@@ -29,6 +31,7 @@ class CareChatState extends Equatable {
     bool? updatingStatus,
     CareChatRealtimeStatus? realtimeStatus,
     Map<String, dynamic>? session,
+    bool? peerOnline,
     String? typingUserId,
     String? typingDisplayName,
     String? errorMessage,
@@ -41,6 +44,7 @@ class CareChatState extends Equatable {
       updatingStatus: updatingStatus ?? this.updatingStatus,
       realtimeStatus: realtimeStatus ?? this.realtimeStatus,
       session: session ?? this.session,
+      peerOnline: peerOnline ?? this.peerOnline,
       typingUserId: clearTyping ? null : typingUserId ?? this.typingUserId,
       typingDisplayName: clearTyping
           ? null
@@ -56,6 +60,7 @@ class CareChatState extends Equatable {
     updatingStatus,
     realtimeStatus,
     session,
+    peerOnline,
     typingUserId,
     typingDisplayName,
     errorMessage,

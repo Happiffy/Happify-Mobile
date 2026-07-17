@@ -242,7 +242,9 @@ class _MoodHistory extends StatelessWidget {
               Expanded(
                 child: Text(
                   'History',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               HistoryDateRangeFilter(

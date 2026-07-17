@@ -189,7 +189,10 @@ class _BlocCareRequestViewState extends State<_BlocCareRequestView> {
 
   Future<void> _submit() async {
     final reason = _reason.text.trim();
-    if (reason.isEmpty) return;
+    if (reason.isEmpty) {
+      showMessage(context, 'Describe the support you need before submitting.');
+      return;
+    }
     final success = await context.read<CareCubit>().requestCare(reason: reason);
     if (!mounted || !success) return;
     context.pop(true);
@@ -481,8 +484,7 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
               );
               final peerName =
                   peer['displayName']?.toString() ?? 'Care professional';
-              final connected =
-                  state.realtimeStatus == CareChatRealtimeStatus.connected;
+              final connected = state.peerOnline;
               return Column(
                 children: [
                   Row(
@@ -662,13 +664,16 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                         borderRadius: BorderRadius.circular(16),
                         child: IconButton(
                           color: Colors.white,
-                          onPressed:
-                              open &&
-                                  !state.sending &&
-                                  (_message.text.trim().isNotEmpty ||
-                                      _imageUrl != null)
+                          onPressed: open && !state.sending
                               ? () async {
                                   final content = _message.text.trim();
+                                  if (content.isEmpty && _imageUrl == null) {
+                                    showMessage(
+                                      context,
+                                      'Write a message or attach a photo before sending.',
+                                    );
+                                    return;
+                                  }
                                   final sent = await _cubit.sendMessage(
                                     content,
                                     imageUrl: _imageUrl,

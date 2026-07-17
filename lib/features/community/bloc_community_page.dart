@@ -455,6 +455,10 @@ class _CommunityPostCardState extends State<_CommunityPostCard> {
                       color: Colors.white,
                       onPressed: () async {
                         if (_reply.text.trim().isEmpty && _imageUrl == null) {
+                          showMessage(
+                            context,
+                            'Write a reply or attach a photo before sending.',
+                          );
                           return;
                         }
                         await widget.onComment(
@@ -630,9 +634,12 @@ class _CommunityHeatmapTabState extends State<_CommunityHeatmapTab> {
                                 ? null
                                 : _apply,
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: HappifyColors.greenDark,
+                              foregroundColor: Colors.white,
+                              backgroundColor: HappifyColors.green,
+                              elevation: 3,
+                              shadowColor: HappifyColors.greenDark,
                               side: const BorderSide(
-                                color: HappifyColors.line,
+                                color: HappifyColors.green,
                                 width: 2,
                               ),
                               shape: const RoundedRectangleBorder(),
@@ -664,6 +671,9 @@ class _HeatmapDateButton extends StatelessWidget {
     onPressed: onPressed,
     style: OutlinedButton.styleFrom(
       foregroundColor: HappifyColors.ink,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      shadowColor: Colors.transparent,
       side: const BorderSide(color: HappifyColors.line, width: 2),
       shape: const RoundedRectangleBorder(),
     ),
@@ -678,6 +688,7 @@ class _PrivacyHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final polygons = <Polygon>[];
+    final markers = <Marker>[];
     for (final item in items) {
       final latitude = (item['latitude'] as num?)?.toDouble();
       final longitude = (item['longitude'] as num?)?.toDouble();
@@ -696,6 +707,33 @@ class _PrivacyHeatmap extends StatelessWidget {
         }
       }
       final color = moodColor(dominant);
+      final count = (item['count'] as num?)?.toInt() ?? 0;
+      markers.add(
+        Marker(
+          point: LatLng(latitude + .05, longitude + .05),
+          width: 56,
+          height: 56,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: color,
+              border: Border.all(color: Colors.white, width: 2),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Color(0x33000000), offset: Offset(0, 3)),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
       polygons.add(
         Polygon(
           points: [
@@ -738,6 +776,7 @@ class _PrivacyHeatmap extends StatelessWidget {
           userAgentPackageName: 'com.happify.app.mobile_happify',
         ),
         PolygonLayer(polygons: polygons),
+        MarkerLayer(markers: markers),
       ],
     );
   }
