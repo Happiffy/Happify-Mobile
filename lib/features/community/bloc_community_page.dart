@@ -271,7 +271,6 @@ class _CommunityFeedTab extends StatelessWidget {
                             post['id']?.toString(),
                           ),
                           onComment: onComment,
-                          onReport: onReport,
                         ),
                       ),
                     ),
@@ -322,13 +321,11 @@ class _CommunityPostCard extends StatelessWidget {
     required this.post,
     required this.busy,
     required this.onComment,
-    required this.onReport,
   });
 
   final Map<String, dynamic> post;
   final bool busy;
   final Future<void> Function(String postId) onComment;
-  final Future<void> Function(String targetType, String targetId) onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -352,14 +349,7 @@ class _CommunityPostCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (mood != null) Chip(label: Text(prettyEnum(mood))),
-              PopupMenuButton<String>(
-                tooltip: 'Report post',
-                onSelected: (_) => onReport('POST', postId),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'report', child: Text('Report')),
-                ],
-              ),
+              if (mood != null) happifyMoodEmoji(mood, size: 32),
             ],
           ),
           const SizedBox(height: 8),
@@ -387,21 +377,13 @@ class _CommunityPostCard extends StatelessWidget {
               ),
             ],
           ),
-          ...objectList(post['comments']).map((comment) {
-            final commentId = comment['id']?.toString() ?? '';
-            return ListTile(
+          ...objectList(post['comments']).map(
+            (comment) => ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(comment['alias']?.toString() ?? 'Anonymous'),
               subtitle: Text(comment['content']?.toString() ?? ''),
-              trailing: IconButton(
-                onPressed: commentId.isEmpty
-                    ? null
-                    : () => onReport('COMMENT', commentId),
-                icon: HappifyEmoji.report(size: 22),
-                tooltip: 'Report comment',
-              ),
-            );
-          }),
+            ),
+          ),
         ],
       ),
     );

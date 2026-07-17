@@ -188,12 +188,13 @@ class CommunityCubit extends Cubit<CommunityState> {
     refreshFeed: true,
   );
 
-  Future<bool> comment(String postId, String content) {
+  Future<bool> comment(String postId, String content, {String? imageUrl}) {
     final cleanContent = content.trim();
     if (cleanContent.isEmpty) return Future.value(false);
     return _runTargetAction(
       targetId: postId,
-      action: () => repository.comment(postId, cleanContent),
+      action: () =>
+          repository.comment(postId, cleanContent, imageUrl: imageUrl),
       refreshFeed: true,
       successMessage: 'Supportive comment added.',
     );

@@ -239,7 +239,7 @@ class _BlocProfileViewState extends State<BlocProfileView> {
             ),
 
             _ProfileActionTile(
-              icon: HappifyEmoji.phone(size: 38),
+              icon: HappifyEmoji.shield(size: 38),
 
               title: 'Emergency contacts',
               subtitle: 'Manage trusted contacts',

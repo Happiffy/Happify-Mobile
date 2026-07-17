@@ -353,6 +353,7 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
   }
 
   Future<void> _pickImage() async {
+    final api = AppServices.of(context).auth.api;
     final file = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       imageQuality: 82,
@@ -367,7 +368,6 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
           : file.name.toLowerCase().endsWith('.webp')
           ? 'webp'
           : 'jpeg';
-      final api = AppServices.of(context).auth.api;
       final image = await HappifyRepository(api).uploadImage(
         imageBase64: base64Encode(bytes),
         contentType: 'image/$extension',

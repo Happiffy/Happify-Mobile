@@ -33,8 +33,8 @@ class CommunityRepository {
 
   Future<void> support(String postId) => _repository.support(postId);
 
-  Future<void> comment(String postId, String content) =>
-      _repository.comment(postId, content);
+  Future<void> comment(String postId, String content, {String? imageUrl}) =>
+      _repository.comment(postId, content, imageUrl: imageUrl);
 
   Future<void> report({
     required String targetType,

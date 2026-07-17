@@ -111,8 +111,8 @@ class HappifyRepository {
       '/mood',
       query: {
         'limit': limit,
-        if (startDate case final value?) 'startDate': value,
-        if (endDate case final value?) 'endDate': value,
+        if (startDate != null) 'startDate': startDate,
+        if (endDate != null) 'endDate': endDate,
       },
     );
     return objectList(data['items']);
@@ -154,8 +154,8 @@ class HappifyRepository {
       query: {
         'page': page,
         'limit': limit,
-        if (startDate case final value?) 'startDate': value,
-        if (endDate case final value?) 'endDate': value,
+        if (startDate != null) 'startDate': startDate,
+        if (endDate != null) 'endDate': endDate,
       },
     );
     return objectList(data['items']);
@@ -222,7 +222,7 @@ class HappifyRepository {
     final data = await api.request(
       'GET',
       '/community',
-      query: {'limit': limit, 'cursor': ?cursor},
+      query: {'limit': limit, if (cursor != null) 'cursor': cursor},
     );
     return {
       'items': objectList(data['items']),
@@ -238,7 +238,11 @@ class HappifyRepository {
     await api.request(
       'POST',
       '/community',
-      data: {'alias': alias, 'content': content, 'mood': ?mood},
+      data: {
+        'alias': alias,
+        'content': content,
+        if (mood != null) 'mood': mood,
+      },
     );
   }
 
@@ -246,11 +250,15 @@ class HappifyRepository {
     await api.request('POST', '/community/$postId/support');
   }
 
-  Future<void> comment(String postId, String content) async {
+  Future<void> comment(
+    String postId,
+    String content, {
+    String? imageUrl,
+  }) async {
     await api.request(
       'POST',
       '/community/$postId/comments',
-      data: {'content': content},
+      data: {'content': content, if (imageUrl != null) 'imageUrl': imageUrl},
     );
   }
 
