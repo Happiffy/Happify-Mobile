@@ -58,19 +58,47 @@ class CareChatCubit extends Cubit<CareChatState> {
   }
 
   Future<bool> sendMessage(String content, {String? imageUrl}) async {
-    if (state.sending || (content.trim().isEmpty && imageUrl == null)) {
-      return false;
-    }
-    emit(state.copyWith(sending: true, clearError: true));
+    final trimmed = content.trim();
+    if (trimmed.isEmpty && imageUrl == null) return false;
+    final pendingId = 'pending-${DateTime.now().microsecondsSinceEpoch}';
+    final pendingMessage = {
+      'id': pendingId,
+      'senderId': _realtime.authenticatedUserId,
+      'content': trimmed,
+      'imageUrl': imageUrl,
+      'createdAt': DateTime.now().toIso8601String(),
+      'pending': true,
+    };
+    emit(
+      state.copyWith(
+        sending: true,
+        session: {
+          ...state.session,
+          'messages': [
+            ...objectList(state.session['messages']),
+            pendingMessage,
+          ],
+        },
+        clearError: true,
+      ),
+    );
     try {
-      await repository.sendChat(sessionId, content.trim(), imageUrl: imageUrl);
-      await load();
+      await repository.sendChat(sessionId, trimmed, imageUrl: imageUrl);
       if (!isClosed) emit(state.copyWith(sending: false));
       return true;
     } catch (error) {
       if (!isClosed) {
         emit(
-          state.copyWith(sending: false, errorMessage: failureMessage(error)),
+          state.copyWith(
+            sending: false,
+            session: {
+              ...state.session,
+              'messages': objectList(state.session['messages'])
+                  .where((message) => message['id']?.toString() != pendingId)
+                  .toList(),
+            },
+            errorMessage: failureMessage(error),
+          ),
         );
       }
       return false;
@@ -121,9 +149,19 @@ class CareChatCubit extends Cubit<CareChatState> {
       case 'care-chat:message':
         final message = objectMap(event.data['message']);
         if (message.isEmpty) return;
-        final messages = _mergeMessages(objectList(state.session['messages']), [
-          message,
-        ]);
+        final messageSenderId = message['senderId']?.toString();
+        final currentMessages = objectList(state.session['messages']);
+        final messages = _mergeMessages(
+          currentMessages.where((item) {
+            final isPending = item['pending'] == true;
+            final sameMessage =
+                item['senderId']?.toString() == messageSenderId &&
+                item['content']?.toString() == message['content']?.toString() &&
+                item['imageUrl']?.toString() == message['imageUrl']?.toString();
+            return !isPending || !sameMessage;
+          }).toList(),
+          [message],
+        );
         emit(
           state.copyWith(
             session: {...state.session, 'messages': messages},

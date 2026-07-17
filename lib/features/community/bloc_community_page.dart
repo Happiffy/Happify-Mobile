@@ -415,7 +415,7 @@ class _CommunityPostCardState extends State<_CommunityPostCard> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.image_outlined, size: 20),
+                    HappifyEmoji.picture(size: 22),
                     const SizedBox(width: 8),
                     const Expanded(child: Text('Photo ready to send')),
                     IconButton(
@@ -435,7 +435,7 @@ class _CommunityPostCardState extends State<_CommunityPostCard> {
                     borderRadius: BorderRadius.circular(14),
                     child: IconButton(
                       onPressed: _uploadingImage ? null : _pickReplyImage,
-                      icon: Icon(PhosphorIcons.image(PhosphorIconsStyle.bold)),
+                      icon: HappifyEmoji.picture(size: 24),
                     ),
                   ),
                   const SizedBox(width: 8),

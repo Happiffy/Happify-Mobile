@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 45
     environment: mobile-release
     env:
-      BE_API_URL: ${{ vars.BE_API_URL || 'https://happify-be-production.up.railway.app' }}
+      BE_API_URL: ${{ secrets.BE_API_URL || vars.BE_API_URL || 'https://api.happify.my.id' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5

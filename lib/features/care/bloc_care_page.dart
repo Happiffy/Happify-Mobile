@@ -564,10 +564,20 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                         ),
                       ),
                       TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: open
+                              ? HappifyColors.red
+                              : HappifyColors.green,
+                          disabledForegroundColor: Colors.white70,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
                         onPressed: state.updatingStatus
                             ? null
                             : () => _confirmStatusChange(state),
-                        child: Text(open ? 'Close chat' : 'Reopen chat'),
+                        child: Text(open ? 'Close' : 'Reopen'),
                       ),
                     ],
                   ),
@@ -671,17 +681,15 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Icon(
-                                  PhosphorIcons.image(PhosphorIconsStyle.bold),
-                                ),
-                          tooltip: 'Attach image',
+                              : HappifyEmoji.picture(size: 24),
+                          tooltip: 'Attach photo',
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
                           controller: _message,
-                          enabled: open && !state.sending,
+                          enabled: open,
                           maxLength: 1200,
                           onChanged: _setTyping,
                           decoration: const InputDecoration(
@@ -695,7 +703,7 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                         borderRadius: BorderRadius.circular(16),
                         child: IconButton(
                           color: Colors.white,
-                          onPressed: open && !state.sending
+                          onPressed: open
                               ? () async {
                                   final content = _message.text.trim();
                                   if (content.isEmpty && _imageUrl == null) {
@@ -716,19 +724,11 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                                   }
                                 }
                               : null,
-                          icon: state.sending
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Icon(
-                                  PhosphorIcons.paperPlaneTilt(
-                                    PhosphorIconsStyle.fill,
-                                  ),
-                                ),
+                          icon: Icon(
+                            PhosphorIcons.paperPlaneTilt(
+                              PhosphorIconsStyle.fill,
+                            ),
+                          ),
                           tooltip: 'Send message',
                         ),
                       ),
