@@ -17,6 +17,7 @@ class NotificationSettingsPage extends StatefulWidget {
 class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   bool _loading = true;
   bool _saving = false;
+  bool _firebaseAvailable = false;
   AuthorizationStatus? _status;
   Map<String, bool> _choices = {
     'careChat': false,
@@ -32,21 +33,31 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   }
 
   Future<void> _load() async {
+    final auth = AppServices.of(context).auth;
     try {
-      final values = await Future.wait([
-        FirebaseMessaging.instance.getNotificationSettings(),
-        HappifyRepository(AppServices.of(context).auth.api).preference(),
-      ]);
-      final preference = values[1] as Map<String, dynamic>?;
+      final preference = await HappifyRepository(auth.api).preference();
       final saved = objectMap(preference?['notifications']);
+      final firebaseAvailable = auth.firebaseReady;
+      final settings = firebaseAvailable
+          ? await FirebaseMessaging.instance.getNotificationSettings()
+          : null;
       if (mounted) {
         setState(() {
-          _status = (values[0] as NotificationSettings).authorizationStatus;
+          _firebaseAvailable = firebaseAvailable;
+          _status = settings?.authorizationStatus;
           _choices = {
-            'careChat': saved['careChat'] == true,
-            'referral': saved['referral'] == true,
-            'moodReminders': saved['moodReminders'] == true,
-            'wellbeingUpdates': saved['wellbeingUpdates'] == true,
+            'careChat':
+                saved['careChat'] == true ||
+                preference?['careChatNotifications'] == true,
+            'referral':
+                saved['referral'] == true ||
+                preference?['referralNotifications'] == true,
+            'moodReminders':
+                saved['moodReminders'] == true ||
+                preference?['moodReminderNotifications'] == true,
+            'wellbeingUpdates':
+                saved['wellbeingUpdates'] == true ||
+                preference?['wellbeingUpdateNotifications'] == true,
           };
           _loading = false;
         });
@@ -60,14 +71,17 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   }
 
   Future<void> _enableDeviceNotifications() async {
+    if (!_firebaseAvailable) {
+      showMessage(context, 'Push notifications are unavailable in this build.');
+      return;
+    }
     setState(() => _loading = true);
     try {
-      final settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      if (mounted) setState(() => _status = settings.authorizationStatus);
+      final settings = await PushService(
+        AppServices.of(context).auth,
+        (_, _) {},
+      ).requestPermission();
+      if (mounted) setState(() => _status = settings);
     } catch (error) {
       if (mounted) showMessage(context, failureMessage(error));
     } finally {
@@ -102,15 +116,15 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         _status == AuthorizationStatus.provisional;
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
-      bottomNavigationBar: !enabled && !_loading
-          ? SafeArea(
+      bottomNavigationBar: !_firebaseAvailable || enabled || _loading
+          ? null
+          : SafeArea(
               minimum: const EdgeInsets.fromLTRB(20, 10, 20, 18),
               child: HappifyButton(
                 label: 'Enable device notifications',
                 onPressed: _enableDeviceNotifications,
               ),
-            )
-          : null,
+            ),
       body: HappifyPage(
         children: [
           if (_loading)

@@ -146,53 +146,38 @@ class HappifyButton extends StatelessWidget {
   final Color background;
   final Color foreground;
 
-  Color get _shadowColor {
-    if (background == Colors.white) return const Color(0xFFD9D9D9);
-    if (background == HappifyColors.green) return HappifyColors.greenDark;
-    if (background == HappifyColors.blue) return HappifyColors.blueDark;
-    if (background == HappifyColors.purple) return HappifyColors.purpleDark;
-    if (background == HappifyColors.gold) return HappifyColors.goldDark;
-    if (background == HappifyColors.red) return HappifyColors.redDark;
-    if (background == HappifyColors.orange) return HappifyColors.orangeDark;
-    return background;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return _PressableShadow(
+    return Semantics(
+      button: true,
       enabled: onPressed != null,
-      shadowColor: _shadowColor,
-      child: Semantics(
-        button: true,
-        enabled: onPressed != null,
-        label: label,
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: FilledButton.icon(
-            onPressed: onPressed,
-            icon:
-                leading ??
-                (icon == null ? const SizedBox.shrink() : Icon(icon, size: 20)),
-            label: Text(label),
-            style: FilledButton.styleFrom(
-              backgroundColor: background,
-              foregroundColor: foreground,
-              disabledBackgroundColor: HappifyColors.surfaceMuted,
-              disabledForegroundColor: HappifyColors.inkMuted,
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              side: background == Colors.white
-                  ? const BorderSide(color: HappifyColors.line, width: 2)
-                  : BorderSide.none,
-              textStyle: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-                letterSpacing: .1,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(HappifyRadii.button),
-              ),
+      label: label,
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: FilledButton.icon(
+          onPressed: onPressed,
+          icon:
+              leading ??
+              (icon == null ? const SizedBox.shrink() : Icon(icon, size: 20)),
+          label: Text(label),
+          style: FilledButton.styleFrom(
+            backgroundColor: background,
+            foregroundColor: foreground,
+            disabledBackgroundColor: HappifyColors.surfaceMuted,
+            disabledForegroundColor: HappifyColors.inkMuted,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            side: background == Colors.white
+                ? const BorderSide(color: HappifyColors.line, width: 2)
+                : BorderSide.none,
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+              letterSpacing: .1,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(HappifyRadii.button),
             ),
           ),
         ),
@@ -220,61 +205,6 @@ class HappifyIconButton extends StatelessWidget {
       enabled: onPressed != null,
       label: label,
       child: IconButton(onPressed: onPressed, icon: Icon(icon)),
-    );
-  }
-}
-
-class _PressableShadow extends StatefulWidget {
-  const _PressableShadow({
-    required this.child,
-    required this.enabled,
-    required this.shadowColor,
-  });
-
-  final Widget child;
-  final bool enabled;
-  final Color shadowColor;
-
-  @override
-  State<_PressableShadow> createState() => _PressableShadowState();
-}
-
-class _PressableShadowState extends State<_PressableShadow> {
-  bool _pressed = false;
-
-  void _setPressed(bool value) {
-    if (!widget.enabled || _pressed == value) return;
-    setState(() => _pressed = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 61,
-      child: Listener(
-        onPointerDown: (_) => _setPressed(true),
-        onPointerUp: (_) => _setPressed(false),
-        onPointerCancel: (_) => _setPressed(false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 80),
-          curve: Curves.easeOut,
-          transform: Matrix4.translationValues(0, _pressed ? 5 : 0, 0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(HappifyRadii.button),
-            boxShadow: widget.enabled && !_pressed
-                ? [
-                    BoxShadow(
-                      color: widget.shadowColor,
-                      offset: const Offset(0, 5),
-                      blurRadius: 0,
-                    ),
-                  ]
-                : const [],
-          ),
-          child: widget.child,
-        ),
-      ),
     );
   }
 }

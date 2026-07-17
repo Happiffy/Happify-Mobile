@@ -636,8 +636,8 @@ class _CommunityHeatmapTabState extends State<_CommunityHeatmapTab> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
                               backgroundColor: HappifyColors.green,
-                              elevation: 3,
-                              shadowColor: HappifyColors.greenDark,
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
                               side: const BorderSide(
                                 color: HappifyColors.green,
                                 width: 2,

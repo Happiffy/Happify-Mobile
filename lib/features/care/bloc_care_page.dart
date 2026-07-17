@@ -286,7 +286,7 @@ class CareChatListPage extends StatelessWidget {
                               ),
                               Text(
                                 chat['status'] == 'OPEN'
-                                    ? 'Online'
+                                    ? 'Chat open'
                                     : 'Chat closed',
                               ),
                             ],

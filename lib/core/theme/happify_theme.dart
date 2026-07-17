@@ -174,14 +174,8 @@ ThemeData buildHappifyTheme({bool highContrast = false}) {
               ? HappifyColors.focus.withValues(alpha: .55)
               : null,
         ),
-        elevation: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.pressed) ||
-                  states.contains(WidgetState.disabled)
-              ? 0
-              : 5,
-        ),
-        shadowColor: WidgetStatePropertyAll(primaryDark),
+        elevation: const WidgetStatePropertyAll(0),
+        shadowColor: const WidgetStatePropertyAll(Colors.transparent),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(HappifyRadii.button),
@@ -223,14 +217,8 @@ ThemeData buildHappifyTheme({bool highContrast = false}) {
               ? HappifyColors.focus
               : null,
         ),
-        elevation: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.pressed) ||
-                  states.contains(WidgetState.disabled)
-              ? 0
-              : 4,
-        ),
-        shadowColor: const WidgetStatePropertyAll(HappifyColors.shadow),
+        elevation: const WidgetStatePropertyAll(0),
+        shadowColor: const WidgetStatePropertyAll(Colors.transparent),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(HappifyRadii.button),
