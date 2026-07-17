@@ -193,10 +193,7 @@ class _BlocJournalViewState extends State<_BlocJournalView> {
                 child: Column(
                   children: [
                     ...state.entries.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _JournalEntryCard(entry: entry),
-                      ),
+                      (entry) => _JournalEntryCard(entry: entry),
                     ),
                     if (state.actionError != null && !state.creating)
                       const Padding(
@@ -243,6 +240,7 @@ class _JournalEntryCardState extends State<_JournalEntryCard> {
     final reflection = entry['aiReflection']?.toString();
     final mood = entry['detectedMood']?.toString();
     return FeatureCard(
+      divider: true,
       padding: EdgeInsets.zero,
       child: ExpansionTile(
         shape: const Border(),

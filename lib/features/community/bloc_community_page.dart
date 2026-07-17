@@ -259,25 +259,10 @@ class _CommunityFeedTab extends StatelessWidget {
                           ),
                         ),
                       ),
-                    if (state.hasMoreFeed || state.loadingMoreFeed)
-                      OutlinedButton.icon(
-                        onPressed: state.loadingMoreFeed
-                            ? null
-                            : context.read<CommunityCubit>().loadMoreFeed,
-                        icon: state.loadingMoreFeed
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : HappifyEmoji.next(size: 22),
-
-                        label: Text(
-                          state.loadingMoreFeed
-                              ? 'Loading stories...'
-                              : 'Load more',
-                        ),
+                    if (state.loadingMoreFeed)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: CircularProgressIndicator(),
                       ),
                   ],
                 ),

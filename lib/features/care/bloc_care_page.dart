@@ -359,7 +359,24 @@ class _CareChatListViewState extends State<_CareChatListView> {
           if (state.status == CareStatus.loading)
             const Center(child: CircularProgressIndicator())
           else if (state.overview.chats.isEmpty)
-            const Text('No care chats are available yet.')
+            FeatureCard(
+              borderless: true,
+              child: Column(
+                children: [
+                  HappifyEmoji.comment(size: 64),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No chats yet',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Once a psychologist approves your request, the chat opens here.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
           else
             ...state.overview.chats.map((chat) {
               final psychologist = objectMap(chat['psychologist']);

@@ -272,6 +272,7 @@ class AsyncStateView extends StatelessWidget {
     }
     if (isEmpty) {
       return FeatureCard(
+        borderless: true,
         child: Column(
           children: [
             emptyVisual ?? HappifyEmoji.records(size: 56),

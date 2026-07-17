@@ -272,12 +272,7 @@ class _MoodHistory extends StatelessWidget {
           onRetry: context.read<MoodCubit>().load,
           child: Column(
             children: [
-              ...state.history.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _MoodHistoryCard(item: item),
-                ),
-              ),
+              ...state.history.map((item) => _MoodHistoryCard(item: item)),
               if (state.loadingMoreHistory)
                 const Padding(
                   padding: EdgeInsets.only(top: 4),
@@ -306,15 +301,8 @@ class _MoodHistoryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: moodColor(mood),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
+              happifyMoodEmoji(mood, size: 30),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   prettyEnum(mood),
