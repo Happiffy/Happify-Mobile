@@ -62,7 +62,6 @@ class _BlocCareView extends StatelessWidget {
         body: BlocBuilder<CareCubit, CareState>(
           builder: (context, state) {
             final overview = state.overview;
-            final empty = overview.referrals.isEmpty && overview.chats.isEmpty;
             return HappifyPage(
               refresh: context.read<CareCubit>().refresh,
               children: [
@@ -76,9 +75,7 @@ class _BlocCareView extends StatelessWidget {
                 AsyncStateView(
                   loading: state.status == CareStatus.loading,
                   error: state.errorMessage,
-                  isEmpty: empty,
-                  emptyMessage:
-                      'No providers, referrals, or chats are available.',
+                  isEmpty: false,
                   onRetry: context.read<CareCubit>().load,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,19 +95,69 @@ class _BlocCareView extends StatelessWidget {
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        'Referral status',
+                        'My care requests',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
+                      const SizedBox(height: 10),
                       if (overview.referrals.isEmpty)
-                        const Text('No care requests yet.'),
+                        const Text(
+                          'Your care requests and psychologist updates will appear here.',
+                        ),
                       ...overview.referrals.map(
-                        (item) => ListTile(
-                          leading: ExcludeSemantics(
-                            child: HappifyEmoji.referral(size: 34),
-                          ),
-                          title: Text(item['reason'].toString()),
-                          subtitle: Text(
-                            '${prettyEnum(item['status'])} · ${prettyEnum(item['riskLevel'])} · ${shortDate(item['createdAt'])}',
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: FeatureCard(
+                            divider: true,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    HappifyEmoji.referral(size: 34),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        item['providerName']?.toString() ??
+                                            'Happify Wellbeing Network',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
+                                      ),
+                                    ),
+                                    _CareStatusPill(
+                                      label: prettyEnum(item['status']),
+                                      accepted: item['status'] == 'ACCEPTED',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(item['reason']?.toString() ?? ''),
+                                if (item['requestComment']
+                                        ?.toString()
+                                        .isNotEmpty ==
+                                    true) ...[
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Your comment: ${item['requestComment']}',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                                if (item['reviewerComment']
+                                        ?.toString()
+                                        .isNotEmpty ==
+                                    true) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Psychologist note: ${item['reviewerComment']}',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -156,6 +203,30 @@ class _BlocCareView extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CareStatusPill extends StatelessWidget {
+  const _CareStatusPill({required this.label, required this.accepted});
+
+  final String label;
+  final bool accepted;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: accepted ? HappifyColors.greenSurface : HappifyColors.goldSurface,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: accepted ? HappifyColors.greenDark : HappifyColors.goldInk,
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+  );
 }
 
 class BlocCareRequestPage extends StatelessWidget {

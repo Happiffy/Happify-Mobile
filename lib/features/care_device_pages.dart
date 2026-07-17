@@ -100,7 +100,21 @@ class _VoicePageState extends State<VoicePage> {
     }
   }
 
+  Future<void> _resumeSession(String sessionId) async {
+    if (_recording || _uploading || _sessionId == sessionId) return;
+    await AppServices.of(context).speech.stop();
+    if (!mounted) return;
+    setState(() {
+      _sessionId = sessionId;
+      _path = null;
+      _idempotencyKey = null;
+      _turn = null;
+      _error = null;
+    });
+  }
+
   Future<void> _startNewSession() async {
+    await AppServices.of(context).speech.stop();
     final path = _path;
     if (path != null) {
       try {
@@ -230,6 +244,7 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   Future<void> _upload() async {
+    final services = AppServices.of(context);
     final path = _path;
     if (path == null) return;
     final idempotencyKey =
@@ -255,6 +270,19 @@ class _VoicePageState extends State<VoicePage> {
           _turns = [turn, ..._turns.where((item) => item['id'] != turn['id'])];
           _error = null;
         });
+        final audioUrl = turn['audioUrl']?.toString();
+        final risk = turn['riskLevel']?.toString();
+        if (services.settings.voiceResponseAutoplay &&
+            audioUrl != null &&
+            audioUrl.isNotEmpty &&
+            risk != 'HIGH' &&
+            risk != 'CRISIS') {
+          unawaited(
+            services.speech
+                .playProtected(services.auth.api, audioUrl)
+                .catchError((_) {}),
+          );
+        }
       }
     } catch (error) {
       if (mounted) setState(() => _error = failureMessage(error));
@@ -340,7 +368,18 @@ class _VoicePageState extends State<VoicePage> {
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Play AI responses automatically'),
+            subtitle: const Text('Responses are spoken after processing.'),
+            value: services.settings.voiceResponseAutoplay,
+            onChanged: (value) async {
+              await services.settings.update(voiceResponseAutoplay: value);
+              if (mounted) setState(() {});
+            },
+          ),
+          const SizedBox(height: 8),
           HappifyButton(
             label: _recording ? 'Stop recording' : 'Start recording',
             icon: _recording
@@ -418,34 +457,18 @@ class _VoicePageState extends State<VoicePage> {
                     const SizedBox(height: 10),
                     ListenableBuilder(
                       listenable: services.speech,
-                      builder: (context, _) => OutlinedButton.icon(
-                        onPressed: services.speech.playing
-                            ? services.speech.stop
-                            : () async {
-                                try {
-                                  await services.speech.playProtected(
-                                    services.auth.api,
-                                    _turn!['audioUrl'].toString(),
-                                  );
-                                } catch (error) {
-                                  if (context.mounted) {
-                                    showMessage(context, failureMessage(error));
-                                  }
-                                }
-                              },
-                        icon: Icon(
-                          services.speech.playing
-                              ? PhosphorIcons.stop(PhosphorIconsStyle.fill)
-                              : PhosphorIcons.play(PhosphorIconsStyle.fill),
-                        ),
-                        label: Text(
-                          services.speech.playing
-                              ? 'Stop playback'
-                              : 'Play protected response',
-                        ),
-                      ),
+                      builder: (context, _) => services.speech.playing
+                          ? OutlinedButton.icon(
+                              onPressed: services.speech.stop,
+                              icon: Icon(
+                                PhosphorIcons.stop(PhosphorIconsStyle.fill),
+                              ),
+                              label: const Text('Stop response'),
+                            )
+                          : const Text(
+                              'Your AI companion response is spoken automatically.',
+                            ),
                     ),
-                    Text('Expires: ${shortDate(_turn!['audioExpiresAt'])}'),
                   ],
                   if (urgent) ...[
                     const Divider(),
@@ -480,6 +503,7 @@ class _VoicePageState extends State<VoicePage> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FeatureCard(
                     color: active ? HappifyColors.blueSurface : null,
+                    onTap: () => _resumeSession(session.id),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -535,56 +559,12 @@ class _VoicePageState extends State<VoicePage> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        ...session.turns.take(3).map((turn) {
-                          final mood =
-                              turn['detectedMood']?.toString() ?? 'NEUTRAL';
-                          final transcript = turn['transcript']?.toString();
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 9),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .72),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            '${prettyEnum(mood)} · ${prettyEnum(turn['riskLevel'])}',
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.labelLarge,
-                                          ),
-                                        ),
-                                        Text(
-                                          shortDate(turn['createdAt']),
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.labelSmall,
-                                        ),
-                                      ],
-                                    ),
-                                    if (transcript != null &&
-                                        transcript.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(transcript),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                        if (session.turns.length > 3)
-                          Text(
-                            '+ ${session.turns.length - 3} rekaman lainnya',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
+                        Text(
+                          active
+                              ? 'Tap to keep talking in this session.'
+                              : 'Tap to continue this session.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),

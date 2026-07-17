@@ -175,6 +175,7 @@ class FeatureCard extends StatelessWidget {
     this.color,
     this.onTap,
     this.divider = false,
+    this.borderless = false,
     this.padding = const EdgeInsets.all(18),
     super.key,
   });
@@ -183,6 +184,7 @@ class FeatureCard extends StatelessWidget {
   final Color? color;
   final VoidCallback? onTap;
   final bool divider;
+  final bool borderless;
   final EdgeInsets padding;
 
   @override
@@ -200,7 +202,9 @@ class FeatureCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: color ?? Theme.of(context).colorScheme.surface,
           borderRadius: radius,
-          border: divider
+          border: borderless
+              ? null
+              : divider
               ? const Border(
                   bottom: BorderSide(color: HappifyColors.line, width: 2),
                 )
@@ -388,7 +392,16 @@ void showMessage(BuildContext context, String message) {
       normalized.contains('expired') ||
       normalized.contains('required') ||
       normalized.contains('invalid') ||
-      normalized.contains('not available');
+      normalized.contains('not available') ||
+      normalized.startsWith('add ') ||
+      normalized.startsWith('attach ') ||
+      normalized.startsWith('choose ') ||
+      normalized.startsWith('complete ') ||
+      normalized.startsWith('describe ') ||
+      normalized.startsWith('enable ') ||
+      normalized.startsWith('enter ') ||
+      normalized.startsWith('select ') ||
+      normalized.startsWith('write ');
   showToast(
     context,
     title: isError ? 'Something went wrong' : message,

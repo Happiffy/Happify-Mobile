@@ -325,6 +325,7 @@ class _ProfileSummary extends StatelessWidget {
           const SizedBox(height: 10),
         ],
         FeatureCard(
+          borderless: true,
           child: Column(
             children: [
               HappifyAvatar(

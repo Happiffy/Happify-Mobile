@@ -466,6 +466,7 @@ class AppSettings extends ChangeNotifier {
   bool highContrast = false;
   bool reducedMotion = false;
   bool audioMode = false;
+  bool voiceResponseAutoplay = true;
   bool screenReaderOptimized = false;
   String textScale = 'STANDARD';
   bool loaded = false;
@@ -483,6 +484,8 @@ class AppSettings extends ChangeNotifier {
     highContrast = await _storage.getBool('highContrast') ?? false;
     reducedMotion = await _storage.getBool('reducedMotion') ?? false;
     audioMode = await _storage.getBool('audioMode') ?? false;
+    voiceResponseAutoplay =
+        await _storage.getBool('voiceResponseAutoplay') ?? true;
     screenReaderOptimized =
         await _storage.getBool('screenReaderOptimized') ?? false;
     textScale = await _storage.getString('textScale') ?? 'STANDARD';
@@ -524,12 +527,15 @@ class AppSettings extends ChangeNotifier {
     bool? highContrast,
     bool? reducedMotion,
     bool? audioMode,
+    bool? voiceResponseAutoplay,
     bool? screenReaderOptimized,
     String? textScale,
   }) async {
     this.highContrast = highContrast ?? this.highContrast;
     this.reducedMotion = reducedMotion ?? this.reducedMotion;
     this.audioMode = audioMode ?? this.audioMode;
+    this.voiceResponseAutoplay =
+        voiceResponseAutoplay ?? this.voiceResponseAutoplay;
     this.screenReaderOptimized =
         screenReaderOptimized ?? this.screenReaderOptimized;
     this.textScale = textScale ?? this.textScale;
@@ -571,6 +577,7 @@ class AppSettings extends ChangeNotifier {
       _storage.setBool('highContrast', highContrast),
       _storage.setBool('reducedMotion', reducedMotion),
       _storage.setBool('audioMode', audioMode),
+      _storage.setBool('voiceResponseAutoplay', voiceResponseAutoplay),
       _storage.setBool('screenReaderOptimized', screenReaderOptimized),
       _storage.setString('textScale', textScale),
     ]);
