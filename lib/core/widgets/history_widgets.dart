@@ -77,15 +77,13 @@ class HistoryDateRangeFilter extends StatelessWidget {
         side: const BorderSide(color: Color(0xFFE5E5E5), width: 2),
       ),
       onPressed: () async {
-        final dates = await showModalBottomSheet<_HistoryDateRange>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) =>
-              _HistoryDateRangeSheet(startDate: startDate, endDate: endDate),
+        final dates = await showHistoryDateRangePicker(
+          context,
+          startDate: startDate,
+          endDate: endDate,
         );
         if (dates == null || !context.mounted) return;
-        await onApply(dates.startDate, dates.endDate);
+        await onApply(dates.$1, dates.$2);
       },
       icon: const Icon(Icons.calendar_month_outlined),
       label: Text(_label(startDate, endDate)),
@@ -97,6 +95,18 @@ class HistoryDateRangeFilter extends StatelessWidget {
     return 'Dates: ${_formatDate(startDate)} – ${_formatDate(endDate)}';
   }
 }
+
+Future<(DateTime? startDate, DateTime? endDate)?> showHistoryDateRangePicker(
+  BuildContext context, {
+  DateTime? startDate,
+  DateTime? endDate,
+}) => showModalBottomSheet<_HistoryDateRange>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: Colors.transparent,
+  builder: (_) =>
+      _HistoryDateRangeSheet(startDate: startDate, endDate: endDate),
+).then((dates) => dates == null ? null : (dates.startDate, dates.endDate));
 
 class _HistoryDateRange {
   const _HistoryDateRange(this.startDate, this.endDate);

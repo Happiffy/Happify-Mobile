@@ -12,6 +12,7 @@ import '../../core/happify_repository.dart';
 import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
+import '../../core/widgets/history_widgets.dart';
 import '../../core/widgets/happify_emoji.dart';
 import '../../core/widgets/happify_rich_text.dart';
 import 'bloc/community_cubit.dart';
@@ -526,28 +527,18 @@ class _CommunityHeatmapTabState extends State<_CommunityHeatmapTab> {
   DateTime _dateOnly(DateTime value) =>
       DateTime(value.year, value.month, value.day);
 
-  Future<void> _selectDate({required bool isStart}) async {
-    final today = _dateOnly(DateTime.now());
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: isStart ? _startDate : _endDate,
-      firstDate: today.subtract(const Duration(days: 89)),
-      lastDate: today,
+  Future<void> _selectRange() async {
+    final dates = await showHistoryDateRangePicker(
+      context,
+      startDate: _startDate,
+      endDate: _endDate,
     );
-    if (selected == null || !mounted) return;
+    if (dates == null || dates.$1 == null || dates.$2 == null || !mounted) {
+      return;
+    }
     setState(() {
-      if (isStart) {
-        _startDate = selected;
-      } else {
-        _endDate = selected;
-      }
-      if (_startDate.isAfter(_endDate)) {
-        if (isStart) {
-          _endDate = _startDate;
-        } else {
-          _startDate = _endDate;
-        }
-      }
+      _startDate = dates.$1!;
+      _endDate = dates.$2!;
     });
   }
 
@@ -615,36 +606,22 @@ class _CommunityHeatmapTabState extends State<_CommunityHeatmapTab> {
                         children: [
                           Expanded(
                             child: _HeatmapDateButton(
-                              value: _formatDate(_startDate),
-                              onPressed: () => _selectDate(isStart: true),
+                              value:
+                                  '${_formatDate(_startDate)} – ${_formatDate(_endDate)}',
+                              onPressed: _selectRange,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: _HeatmapDateButton(
-                              value: _formatDate(_endDate),
-                              onPressed: () => _selectDate(isStart: false),
+                          SizedBox(
+                            width: 96,
+                            child: HappifyButton(
+                              label: 'Apply',
+                              onPressed:
+                                  state.heatmapStatus ==
+                                      CommunityHeatmapStatus.loading
+                                  ? null
+                                  : _apply,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            onPressed:
-                                state.heatmapStatus ==
-                                    CommunityHeatmapStatus.loading
-                                ? null
-                                : _apply,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              backgroundColor: HappifyColors.green,
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                              side: const BorderSide(
-                                color: HappifyColors.green,
-                                width: 2,
-                              ),
-                              shape: const RoundedRectangleBorder(),
-                            ),
-                            child: const Text('Apply'),
                           ),
                         ],
                       ),

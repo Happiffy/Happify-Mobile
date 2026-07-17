@@ -251,58 +251,89 @@ class CareChatListPage extends StatelessWidget {
   Widget build(BuildContext context) => BlocProvider(
     create: (context) =>
         CareCubit(repository: context.read<CareRepository>())..load(),
-    child: Scaffold(
-      appBar: AppBar(title: const Text('Care chats')),
-      body: BlocBuilder<CareCubit, CareState>(
-        builder: (context, state) => HappifyPage(
-          children: [
-            if (state.status == CareStatus.loading)
-              const Center(child: CircularProgressIndicator())
-            else if (state.overview.chats.isEmpty)
-              const Text('No care chats are available yet.')
-            else
-              ...state.overview.chats.map((chat) {
-                final psychologist = objectMap(chat['psychologist']);
-                final name =
-                    psychologist['displayName']?.toString() ??
-                    'Care professional';
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: FeatureCard(
-                    onTap: () => context.push('/care/chat/${chat['id']}'),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          child: Text(name.substring(0, 1).toUpperCase()),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name,
-                                style: Theme.of(context).textTheme.titleMedium,
+    child: const _CareChatListView(),
+  );
+}
+
+class _CareChatListView extends StatefulWidget {
+  const _CareChatListView();
+
+  @override
+  State<_CareChatListView> createState() => _CareChatListViewState();
+}
+
+class _CareChatListViewState extends State<_CareChatListView> {
+  late final Timer _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) unawaited(context.read<CareCubit>().refresh());
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Care chats')),
+    body: BlocBuilder<CareCubit, CareState>(
+      builder: (context, state) => HappifyPage(
+        children: [
+          if (state.status == CareStatus.loading)
+            const Center(child: CircularProgressIndicator())
+          else if (state.overview.chats.isEmpty)
+            const Text('No care chats are available yet.')
+          else
+            ...state.overview.chats.map((chat) {
+              final psychologist = objectMap(chat['psychologist']);
+              final name =
+                  psychologist['displayName']?.toString() ??
+                  'Care professional';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: FeatureCard(
+                  onTap: () => context.push('/care/chat/${chat['id']}'),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        child: Text(name.substring(0, 1).toUpperCase()),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              chat['peerOnline'] == true ? 'Online' : 'Offline',
+                              style: TextStyle(
+                                color: chat['peerOnline'] == true
+                                    ? HappifyColors.greenDark
+                                    : HappifyColors.inkMuted,
                               ),
-                              Text(
-                                chat['status'] == 'OPEN'
-                                    ? 'Chat open'
-                                    : 'Chat closed',
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        Icon(
-                          PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-                          color: Colors.black,
-                        ),
-                      ],
-                    ),
+                      ),
+                      Icon(
+                        PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                        color: Colors.black,
+                      ),
+                    ],
                   ),
-                );
-              }),
-          ],
-        ),
+                ),
+              );
+            }),
+        ],
       ),
     ),
   );
