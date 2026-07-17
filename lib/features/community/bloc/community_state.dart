@@ -11,6 +11,8 @@ class CommunityState extends Equatable {
     this.posts = const [],
     this.nextCursor,
     this.heatmapItems = const [],
+    this.heatmapStartDate,
+    this.heatmapEndDate,
     this.loadingMoreFeed = false,
     this.composing = false,
     this.busyTargetIds = const <String>{},
@@ -27,6 +29,8 @@ class CommunityState extends Equatable {
   final List<Map<String, dynamic>> posts;
   final String? nextCursor;
   final List<Map<String, dynamic>> heatmapItems;
+  final DateTime? heatmapStartDate;
+  final DateTime? heatmapEndDate;
   final bool loadingMoreFeed;
   final bool composing;
   final Set<String> busyTargetIds;
@@ -51,6 +55,9 @@ class CommunityState extends Equatable {
     String? nextCursor,
     bool clearNextCursor = false,
     List<Map<String, dynamic>>? heatmapItems,
+    DateTime? heatmapStartDate,
+    DateTime? heatmapEndDate,
+    bool clearHeatmapDates = false,
     bool? loadingMoreFeed,
     bool? composing,
     Set<String>? busyTargetIds,
@@ -71,6 +78,12 @@ class CommunityState extends Equatable {
       posts: posts ?? this.posts,
       nextCursor: clearNextCursor ? null : nextCursor ?? this.nextCursor,
       heatmapItems: heatmapItems ?? this.heatmapItems,
+      heatmapStartDate: clearHeatmapDates
+          ? null
+          : heatmapStartDate ?? this.heatmapStartDate,
+      heatmapEndDate: clearHeatmapDates
+          ? null
+          : heatmapEndDate ?? this.heatmapEndDate,
       loadingMoreFeed: loadingMoreFeed ?? this.loadingMoreFeed,
       composing: composing ?? this.composing,
       busyTargetIds: busyTargetIds ?? this.busyTargetIds,
@@ -94,6 +107,8 @@ class CommunityState extends Equatable {
     posts,
     nextCursor,
     heatmapItems,
+    heatmapStartDate,
+    heatmapEndDate,
     loadingMoreFeed,
     composing,
     busyTargetIds,

@@ -58,8 +58,8 @@ void main() {
       ),
     );
 
-    final container = tester.widget<Container>(find.byType(Container).first);
-    final decoration = container.decoration! as BoxDecoration;
+    final ink = tester.widget<Ink>(find.byType(Ink).first);
+    final decoration = ink.decoration! as BoxDecoration;
 
     expect(decoration.boxShadow, isNull);
     expect(decoration.border, isA<Border>());

@@ -490,13 +490,19 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                       CircleAvatar(
                         radius: 22,
                         backgroundColor: HappifyColors.blue,
-                        child: Text(
-                          peerName.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                        backgroundImage:
+                            peer['avatarUrl']?.toString().isNotEmpty == true
+                            ? NetworkImage(peer['avatarUrl'].toString())
+                            : null,
+                        child: peer['avatarUrl']?.toString().isNotEmpty == true
+                            ? null
+                            : Text(
+                                peerName.substring(0, 1).toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -541,8 +547,9 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                         : ListView.separated(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             itemCount: messages.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 10),
+                            separatorBuilder: (_, index) {
+                              return const SizedBox(height: 10);
+                            },
                             itemBuilder: (_, index) {
                               final item = messages[index];
                               final senderId =
@@ -662,15 +669,15 @@ class _BlocCareChatViewState extends State<_BlocCareChatView> {
                                       _imageUrl != null)
                               ? () async {
                                   final content = _message.text.trim();
-                                  await context.read<CareRepository>().sendChat(
-                                    widget.sessionId,
+                                  final sent = await _cubit.sendMessage(
                                     content,
                                     imageUrl: _imageUrl,
                                   );
-                                  await _cubit.load();
-                                  _message.clear();
-                                  setState(() => _imageUrl = null);
-                                  _setTyping('');
+                                  if (sent) {
+                                    _message.clear();
+                                    setState(() => _imageUrl = null);
+                                    _setTyping('');
+                                  }
                                 }
                               : null,
                           icon: state.sending

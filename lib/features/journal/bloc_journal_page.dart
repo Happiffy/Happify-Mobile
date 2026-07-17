@@ -160,6 +160,7 @@ class _BlocJournalViewState extends State<_BlocJournalView> {
               const SizedBox(height: 16),
               FeatureCard(
                 color: Colors.white,
+                divider: true,
                 child: Row(
                   children: [
                     Expanded(

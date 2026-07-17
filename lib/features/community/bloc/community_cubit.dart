@@ -44,16 +44,20 @@ class CommunityCubit extends Cubit<CommunityState> {
     await _requestFirstFeedPage();
   }
 
-  Future<void> loadHeatmap() async {
+  Future<void> loadHeatmap({DateTime? startDate, DateTime? endDate}) async {
     if (_loadingHeatmap) return;
     _loadingHeatmap = true;
+    final hasRange = startDate != null && endDate != null;
     emit(
       state.copyWith(
         heatmapStatus: CommunityHeatmapStatus.loading,
+        heatmapStartDate: startDate,
+        heatmapEndDate: endDate,
+        clearHeatmapDates: !hasRange,
         clearHeatmapError: true,
       ),
     );
-    await _requestHeatmap();
+    await _requestHeatmap(startDate: startDate, endDate: endDate);
   }
 
   Future<void> _requestFirstFeedPage() async {
@@ -82,9 +86,12 @@ class CommunityCubit extends Cubit<CommunityState> {
     }
   }
 
-  Future<void> _requestHeatmap() async {
+  Future<void> _requestHeatmap({DateTime? startDate, DateTime? endDate}) async {
     try {
-      final items = await repository.loadHeatmap();
+      final items = await repository.loadHeatmap(
+        startDate: startDate,
+        endDate: endDate,
+      );
       emit(
         state.copyWith(
           heatmapStatus: items.isEmpty

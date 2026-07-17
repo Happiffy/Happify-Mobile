@@ -23,7 +23,10 @@ class CommunityRepository {
     );
   }
 
-  Future<List<Map<String, dynamic>>> loadHeatmap() => _repository.heatmap();
+  Future<List<Map<String, dynamic>>> loadHeatmap({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) => _repository.heatmap(startDate: startDate, endDate: endDate);
 
   Future<void> createPost({
     required String alias,

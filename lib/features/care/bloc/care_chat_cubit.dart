@@ -57,11 +57,13 @@ class CareChatCubit extends Cubit<CareChatState> {
     } catch (_) {}
   }
 
-  Future<bool> sendMessage(String content) async {
-    if (state.sending || content.trim().isEmpty) return false;
+  Future<bool> sendMessage(String content, {String? imageUrl}) async {
+    if (state.sending || (content.trim().isEmpty && imageUrl == null)) {
+      return false;
+    }
     emit(state.copyWith(sending: true, clearError: true));
     try {
-      await repository.sendChat(sessionId, content.trim());
+      await repository.sendChat(sessionId, content.trim(), imageUrl: imageUrl);
       await load();
       if (!isClosed) emit(state.copyWith(sending: false));
       return true;

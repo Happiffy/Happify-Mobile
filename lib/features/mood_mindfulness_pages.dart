@@ -240,10 +240,19 @@ class _MoodPageState extends State<MoodPage> {
         const SizedBox(height: 20),
         Text('History', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 10),
-        ..._history.map(
-          (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+        ..._history.asMap().entries.map((entry) {
+          final item = entry.value;
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              border: entry.key == 0
+                  ? null
+                  : const Border(
+                      top: BorderSide(color: Color(0xFFE5E5E5), width: 2),
+                    ),
+            ),
             child: FeatureCard(
+              divider: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -273,8 +282,8 @@ class _MoodPageState extends State<MoodPage> {
                 ],
               ),
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }

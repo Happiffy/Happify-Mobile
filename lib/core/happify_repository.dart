@@ -8,6 +8,9 @@ class HappifyRepository {
   const HappifyRepository(this.api);
   final ApiClient api;
 
+  static String _apiDate(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
   Future<Map<String, dynamic>> profile() async {
     final data = await api.request('GET', '/profile');
     return objectMap(data['profile']);
@@ -109,11 +112,7 @@ class HappifyRepository {
     final data = await api.request(
       'GET',
       '/mood',
-      query: {
-        'limit': limit,
-        if (startDate != null) 'startDate': startDate,
-        if (endDate != null) 'endDate': endDate,
-      },
+      query: {'limit': limit, ?startDate: startDate, ?endDate: endDate},
     );
     return objectList(data['items']);
   }
@@ -154,8 +153,8 @@ class HappifyRepository {
       query: {
         'page': page,
         'limit': limit,
-        if (startDate != null) 'startDate': startDate,
-        if (endDate != null) 'endDate': endDate,
+        ?startDate: startDate,
+        ?endDate: endDate,
       },
     );
     return objectList(data['items']);
@@ -222,7 +221,7 @@ class HappifyRepository {
     final data = await api.request(
       'GET',
       '/community',
-      query: {'limit': limit, if (cursor != null) 'cursor': cursor},
+      query: {'limit': limit, ?cursor: cursor},
     );
     return {
       'items': objectList(data['items']),
@@ -238,11 +237,7 @@ class HappifyRepository {
     await api.request(
       'POST',
       '/community',
-      data: {
-        'alias': alias,
-        'content': content,
-        if (mood != null) 'mood': mood,
-      },
+      data: {'alias': alias, 'content': content, ?mood: mood},
     );
   }
 
@@ -258,7 +253,7 @@ class HappifyRepository {
     await api.request(
       'POST',
       '/community/$postId/comments',
-      data: {'content': content, if (imageUrl != null) 'imageUrl': imageUrl},
+      data: {'content': content, ?imageUrl: imageUrl},
     );
   }
 
@@ -280,8 +275,14 @@ class HappifyRepository {
     );
   }
 
-  Future<List<Map<String, dynamic>>> heatmap() async {
-    final data = await api.request('GET', '/heatmap', query: {'days': 7});
+  Future<List<Map<String, dynamic>>> heatmap({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final query = startDate != null && endDate != null
+        ? {'startDate': _apiDate(startDate), 'endDate': _apiDate(endDate)}
+        : {'days': 7};
+    final data = await api.request('GET', '/heatmap', query: query);
     return objectList(data['items']);
   }
 
@@ -379,7 +380,7 @@ class HappifyRepository {
     await api.request(
       'POST',
       '/referral/chats/$id/messages',
-      data: {'content': content, if (imageUrl != null) 'imageUrl': imageUrl},
+      data: {'content': content, ?imageUrl: imageUrl},
     );
   }
 

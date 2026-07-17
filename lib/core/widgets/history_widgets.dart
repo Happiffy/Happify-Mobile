@@ -69,6 +69,13 @@ class HistoryDateRangeFilter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.black87,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        side: const BorderSide(color: Color(0xFFE5E5E5), width: 2),
+      ),
       onPressed: () async {
         final dates = await showModalBottomSheet<_HistoryDateRange>(
           context: context,

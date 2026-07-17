@@ -236,6 +236,7 @@ class _MoodHistory extends StatelessWidget {
       children: [
         FeatureCard(
           color: Colors.white,
+          divider: true,
           child: Row(
             children: [
               Expanded(
@@ -297,6 +298,7 @@ class _MoodHistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final mood = item['state']?.toString() ?? 'NEUTRAL';
     return FeatureCard(
+      divider: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

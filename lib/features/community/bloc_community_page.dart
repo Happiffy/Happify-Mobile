@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:convert';
+
 import 'package:flutter_map/flutter_map.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../core/app_services.dart';
 import '../../core/happify_repository.dart';
+import '../../core/theme/happify_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/happify_button.dart';
 import '../../core/widgets/happify_emoji.dart';
@@ -77,45 +82,15 @@ class _BlocCommunityViewState extends State<_BlocCommunityView> {
     setState(() => _postMood = null);
   }
 
-  Future<void> _comment(String postId) async {
-    final content = await showTextPrompt(
-      context,
-      title: 'Add supportive comment',
-      label: 'Comment',
-      maxLines: 3,
-    );
-    if (content == null || content.isEmpty || !mounted) return;
-    await context.read<CommunityCubit>().comment(postId, content);
-  }
-
-  Future<void> _report(String targetType, String targetId) async {
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Report content'),
-        children:
-            const [
-                  'HARASSMENT',
-                  'SELF_HARM',
-                  'SPAM',
-                  'MISINFORMATION',
-                  'PRIVACY',
-                  'OTHER',
-                ]
-                .map(
-                  (value) => SimpleDialogOption(
-                    onPressed: () => Navigator.pop(context, value),
-                    child: Text(value),
-                  ),
-                )
-                .toList(),
-      ),
-    );
-    if (reason == null || !mounted) return;
-    await context.read<CommunityCubit>().report(
-      targetType: targetType,
-      targetId: targetId,
-      reason: reason,
+  Future<void> _comment(
+    String postId,
+    String content, {
+    String? imageUrl,
+  }) async {
+    await context.read<CommunityCubit>().comment(
+      postId,
+      content,
+      imageUrl: imageUrl,
     );
   }
 
@@ -160,7 +135,6 @@ class _BlocCommunityViewState extends State<_BlocCommunityView> {
                           setState(() => _postMood = value),
                       onCompose: _compose,
                       onComment: _comment,
-                      onReport: _report,
                     ),
                     const _CommunityHeatmapTab(),
                   ],
@@ -182,7 +156,6 @@ class _CommunityFeedTab extends StatelessWidget {
     required this.onMoodChanged,
     required this.onCompose,
     required this.onComment,
-    required this.onReport,
   });
 
   final TextEditingController alias;
@@ -190,8 +163,8 @@ class _CommunityFeedTab extends StatelessWidget {
   final String? postMood;
   final ValueChanged<String?> onMoodChanged;
   final Future<void> Function() onCompose;
-  final Future<void> Function(String postId) onComment;
-  final Future<void> Function(String targetType, String targetId) onReport;
+  final Future<void> Function(String postId, String content, {String? imageUrl})
+  onComment;
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +289,7 @@ class _CommunityFeedTab extends StatelessWidget {
   }
 }
 
-class _CommunityPostCard extends StatelessWidget {
+class _CommunityPostCard extends StatefulWidget {
   const _CommunityPostCard({
     required this.post,
     required this.busy,
@@ -325,18 +298,77 @@ class _CommunityPostCard extends StatelessWidget {
 
   final Map<String, dynamic> post;
   final bool busy;
-  final Future<void> Function(String postId) onComment;
+  final Future<void> Function(String postId, String content, {String? imageUrl})
+  onComment;
+
+  @override
+  State<_CommunityPostCard> createState() => _CommunityPostCardState();
+}
+
+class _CommunityPostCardState extends State<_CommunityPostCard> {
+  final _reply = TextEditingController();
+  bool _replyOpen = false;
+  bool _uploadingImage = false;
+  String? _imageUrl;
+
+  Future<void> _pickReplyImage() async {
+    final api = AppServices.of(context).auth.api;
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1600,
+    );
+    if (file == null || !mounted) return;
+    setState(() => _uploadingImage = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final extension = file.name.toLowerCase().endsWith('.png')
+          ? 'png'
+          : 'jpeg';
+      final image = await HappifyRepository(api).uploadImage(
+        imageBase64: base64Encode(bytes),
+        contentType: 'image/$extension',
+      );
+      if (mounted) setState(() => _imageUrl = image['url']?.toString());
+    } catch (error) {
+      if (mounted) showMessage(context, failureMessage(error));
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _reply.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final post = widget.post;
     final postId = post['id']?.toString() ?? '';
     final mood = post['mood']?.toString();
     return FeatureCard(
+      divider: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: HappifyColors.purple,
+                child: Text(
+                  (post['alias']?.toString() ?? 'Anonymous')
+                      .substring(0, 1)
+                      .toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,29 +391,108 @@ class _CommunityPostCard extends StatelessWidget {
             spacing: 8,
             children: [
               TextButton.icon(
-                onPressed: busy || postId.isEmpty
+                onPressed: widget.busy || postId.isEmpty
                     ? null
                     : () => context.read<CommunityCubit>().support(postId),
                 icon: post['likedByMe'] == true
                     ? HappifyEmoji.purpleHeart(size: 22)
                     : HappifyEmoji.whiteHeart(size: 22),
-
                 label: Text('${post['supportCount'] ?? 0} support'),
               ),
               TextButton.icon(
-                onPressed: busy || postId.isEmpty
+                onPressed: widget.busy || postId.isEmpty
                     ? null
-                    : () => onComment(postId),
+                    : () => setState(() => _replyOpen = !_replyOpen),
                 icon: HappifyEmoji.comment(size: 22),
                 label: const Text('Comment'),
               ),
             ],
           ),
+          if (_replyOpen) ...[
+            if (_imageUrl != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.image_outlined, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('Photo ready to send')),
+                    IconButton(
+                      onPressed: () => setState(() => _imageUrl = null),
+                      icon: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold)),
+                      tooltip: 'Remove photo',
+                    ),
+                  ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Material(
+                    color: HappifyColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(14),
+                    child: IconButton(
+                      onPressed: _uploadingImage ? null : _pickReplyImage,
+                      icon: Icon(PhosphorIcons.image(PhosphorIconsStyle.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _reply,
+                      maxLength: 400,
+                      decoration: const InputDecoration(
+                        hintText: 'Write a supportive reply',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Material(
+                    color: HappifyColors.purple,
+                    borderRadius: BorderRadius.circular(14),
+                    child: IconButton(
+                      color: Colors.white,
+                      onPressed: () async {
+                        if (_reply.text.trim().isEmpty && _imageUrl == null) {
+                          return;
+                        }
+                        await widget.onComment(
+                          postId,
+                          _reply.text.trim(),
+                          imageUrl: _imageUrl,
+                        );
+                        if (mounted) {
+                          setState(() {
+                            _reply.clear();
+                            _imageUrl = null;
+                            _replyOpen = false;
+                          });
+                        }
+                      },
+                      icon: Icon(
+                        PhosphorIcons.paperPlaneTilt(PhosphorIconsStyle.fill),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           ...objectList(post['comments']).map(
-            (comment) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(comment['alias']?.toString() ?? 'Anonymous'),
-              subtitle: Text(comment['content']?.toString() ?? ''),
+            (comment) => Container(
+              margin: const EdgeInsets.only(top: 10, left: 12),
+              padding: const EdgeInsets.only(left: 12),
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: HappifyColors.line, width: 2),
+                ),
+              ),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(comment['alias']?.toString() ?? 'Anonymous'),
+                subtitle: Text(comment['content']?.toString() ?? ''),
+              ),
             ),
           ),
         ],
@@ -390,17 +501,71 @@ class _CommunityPostCard extends StatelessWidget {
   }
 }
 
-class _CommunityHeatmapTab extends StatelessWidget {
+class _CommunityHeatmapTab extends StatefulWidget {
   const _CommunityHeatmapTab();
 
   @override
-  Widget build(BuildContext context) =>
-      BlocBuilder<CommunityCubit, CommunityState>(
-        builder: (context, state) => RefreshIndicator(
-          onRefresh: context.read<CommunityCubit>().loadHeatmap,
+  State<_CommunityHeatmapTab> createState() => _CommunityHeatmapTabState();
+}
+
+class _CommunityHeatmapTabState extends State<_CommunityHeatmapTab> {
+  late DateTime _startDate;
+  late DateTime _endDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _endDate = _dateOnly(DateTime.now());
+    _startDate = _endDate.subtract(const Duration(days: 6));
+  }
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  Future<void> _selectDate({required bool isStart}) async {
+    final today = _dateOnly(DateTime.now());
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: isStart ? _startDate : _endDate,
+      firstDate: today.subtract(const Duration(days: 89)),
+      lastDate: today,
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      if (isStart) {
+        _startDate = selected;
+      } else {
+        _endDate = selected;
+      }
+      if (_startDate.isAfter(_endDate)) {
+        if (isStart) {
+          _endDate = _startDate;
+        } else {
+          _startDate = _endDate;
+        }
+      }
+    });
+  }
+
+  Future<void> _apply() => context.read<CommunityCubit>().loadHeatmap(
+    startDate: _startDate,
+    endDate: _endDate,
+  );
+
+  String _formatDate(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) => BlocBuilder<CommunityCubit, CommunityState>(
+    builder: (context, state) {
+      if (state.heatmapStatus != CommunityHeatmapStatus.success) {
+        return RefreshIndicator(
+          onRefresh: _apply,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
+            padding: const EdgeInsets.all(20),
             children: [
               AsyncStateView(
                 loading: state.heatmapStatus == CommunityHeatmapStatus.loading,
@@ -410,36 +575,116 @@ class _CommunityHeatmapTab extends StatelessWidget {
                 isEmpty: state.heatmapStatus == CommunityHeatmapStatus.empty,
                 emptyMessage:
                     'No anonymous regional insights are available yet.',
-                onRetry: context.read<CommunityCubit>().loadHeatmap,
-                child: _PrivacyHeatmap(items: state.heatmapItems),
+                onRetry: _apply,
+                child: const SizedBox.shrink(),
               ),
             ],
           ),
-        ),
+        );
+      }
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          _PrivacyHeatmap(items: state.heatmapItems),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.white,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Coarse regional blocks from anonymous contributions.',
+                        style: TextStyle(
+                          color: HappifyColors.inkMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _HeatmapDateButton(
+                              value: _formatDate(_startDate),
+                              onPressed: () => _selectDate(isStart: true),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _HeatmapDateButton(
+                              value: _formatDate(_endDate),
+                              onPressed: () => _selectDate(isStart: false),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed:
+                                state.heatmapStatus ==
+                                    CommunityHeatmapStatus.loading
+                                ? null
+                                : _apply,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: HappifyColors.greenDark,
+                              side: const BorderSide(
+                                color: HappifyColors.line,
+                                width: 2,
+                              ),
+                              shape: const RoundedRectangleBorder(),
+                            ),
+                            child: const Text('Apply'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       );
+    },
+  );
+}
+
+class _HeatmapDateButton extends StatelessWidget {
+  const _HeatmapDateButton({required this.value, required this.onPressed});
+
+  final String value;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton(
+    onPressed: onPressed,
+    style: OutlinedButton.styleFrom(
+      foregroundColor: HappifyColors.ink,
+      side: const BorderSide(color: HappifyColors.line, width: 2),
+      shape: const RoundedRectangleBorder(),
+    ),
+    child: Text(value),
+  );
 }
 
 class _PrivacyHeatmap extends StatelessWidget {
   const _PrivacyHeatmap({required this.items});
   final List<Map<String, dynamic>> items;
 
-  ({double latitude, double longitude})? _parseRegion(String key) {
-    final match = RegExp(r'^G([NS])(\d+)_([EW])(\d+)$').firstMatch(key);
-    if (match == null) return null;
-    return (
-      latitude:
-          double.parse(match.group(2)!) / 10 * (match.group(1) == 'S' ? -1 : 1),
-      longitude:
-          double.parse(match.group(4)!) / 10 * (match.group(3) == 'W' ? -1 : 1),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final polygons = <Polygon>[];
     for (final item in items) {
-      final region = _parseRegion(item['regionKey']?.toString() ?? '');
-      if (region == null) continue;
+      final latitude = (item['latitude'] as num?)?.toDouble();
+      final longitude = (item['longitude'] as num?)?.toDouble();
+      final bounds = objectMap(item['bounds']);
+      if (latitude == null || longitude == null || bounds.isEmpty) {
+        continue;
+      }
       final moods = objectMap(item['moods']);
       var dominant = 'NEUTRAL';
       var highest = -1;
@@ -454,10 +699,22 @@ class _PrivacyHeatmap extends StatelessWidget {
       polygons.add(
         Polygon(
           points: [
-            LatLng(region.latitude, region.longitude),
-            LatLng(region.latitude, region.longitude + .1),
-            LatLng(region.latitude + .1, region.longitude + .1),
-            LatLng(region.latitude + .1, region.longitude),
+            LatLng(
+              (bounds['south'] as num).toDouble(),
+              (bounds['west'] as num).toDouble(),
+            ),
+            LatLng(
+              (bounds['south'] as num).toDouble(),
+              (bounds['east'] as num).toDouble(),
+            ),
+            LatLng(
+              (bounds['north'] as num).toDouble(),
+              (bounds['east'] as num).toDouble(),
+            ),
+            LatLng(
+              (bounds['north'] as num).toDouble(),
+              (bounds['west'] as num).toDouble(),
+            ),
           ],
           color: color.withValues(alpha: .58),
           borderColor: color,
@@ -470,24 +727,18 @@ class _PrivacyHeatmap extends StatelessWidget {
         ),
       );
     }
-    return SizedBox(
-      height: 340,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: FlutterMap(
-          options: const MapOptions(
-            initialCenter: LatLng(-6.2, 106.8),
-            initialZoom: 9,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.happify.app.mobile_happify',
-            ),
-            PolygonLayer(polygons: polygons),
-          ],
-        ),
+    return FlutterMap(
+      options: const MapOptions(
+        initialCenter: LatLng(-6.2, 106.8),
+        initialZoom: 9,
       ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.happify.app.mobile_happify',
+        ),
+        PolygonLayer(polygons: polygons),
+      ],
     );
   }
 }

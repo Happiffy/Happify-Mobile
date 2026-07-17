@@ -174,6 +174,7 @@ class FeatureCard extends StatelessWidget {
     required this.child,
     this.color,
     this.onTap,
+    this.divider = false,
     this.padding = const EdgeInsets.all(18),
     super.key,
   });
@@ -181,11 +182,14 @@ class FeatureCard extends StatelessWidget {
   final Widget child;
   final Color? color;
   final VoidCallback? onTap;
+  final bool divider;
   final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(HappifyRadii.card);
+    final radius = divider
+        ? BorderRadius.zero
+        : BorderRadius.circular(HappifyRadii.card);
     final body = Material(
       color: color ?? Theme.of(context).colorScheme.surface,
       borderRadius: radius,
@@ -196,7 +200,12 @@ class FeatureCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: color ?? Theme.of(context).colorScheme.surface,
           borderRadius: radius,
-          boxShadow: HappifyShadows.soft,
+          border: divider
+              ? const Border(
+                  bottom: BorderSide(color: HappifyColors.line, width: 2),
+                )
+              : Border.all(color: HappifyColors.line),
+          boxShadow: null,
         ),
         child: child,
       ),
